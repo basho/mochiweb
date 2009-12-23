@@ -4,7 +4,7 @@ all:
 
 edoc:
 	erl -noshell -pa ebin \
-	    -eval "edoc:application(mochiweb), \".\", [{dir, \"doc\"}])" \
+	    -eval "edoc:application(mochiweb, \".\", [{dir, \"doc\"}])" \
 	    -s init stop
 
 test:
