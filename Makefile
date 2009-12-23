@@ -1,11 +1,14 @@
+
 all:
-	(cd src;$(MAKE) all)
+	./rebar compile
 
 edoc:
-	(cd src;$(MAKE) edoc)
+	erl -noshell -pa ebin \
+	    -eval "edoc:application(mochiweb), \".\", [{dir, \"doc\"}])" \
+	    -s init stop
 
 test:
-	(cd src;$(MAKE) test)
+	erl -noshell -pa ebin -s mochiweb test -s init stop
 
 clean:
-	(cd src;$(MAKE) clean)
+	./rebar clean
