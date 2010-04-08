@@ -1,6 +1,6 @@
 include ../support/include.mk
 
-APPLICATION=skel
+APPLICATION=mochiweb
 DOC_OPTS={dir,\"../doc\"}
 TEST_PLT=$(TEST_DIR)/dialyzer_plt
 
@@ -24,7 +24,7 @@ test: $(EBIN_FILES)
 $(TEST_PLT):
 	mkdir -p $(TEST_DIR)
 	cp $(DIALYZER_PLT) $(TEST_PLT)
-	dialyzer --plt $(TEST_PLT) --add_to_plt -r ../deps/*/ebin
+	dialyzer --plt $(TEST_PLT) --add_to_plt
 
 clean_plt:
 	rm $(TEST_PLT)
