@@ -9,10 +9,11 @@
 -export([path_split/1]).
 -export([urlsplit/1, urlsplit_path/1, urlunsplit/1, urlunsplit_path/1]).
 -export([guess_mime/1, parse_header/1]).
--export([shell_quote/1, cmd/1, cmd_string/1, cmd_port/2]).
+-export([shell_quote/1, cmd/1, cmd_string/1, cmd_port/2, cmd_status/1]).
 -export([record_to_proplist/2, record_to_proplist/3]).
 -export([safe_relative_path/1, partition/2]).
 -export([parse_qvalues/1, pick_accepted_encodings/3]).
+-export([make_io/1]).
 
 -define(PERCENT, 37).  % $\%
 -define(FULLSTOP, 46). % $\.
@@ -116,12 +117,43 @@ cmd(Argv) ->
 cmd_string(Argv) ->
     string:join([shell_quote(X) || X <- Argv], " ").
 
-%% @spec join([string()], Separator) -> string()
-%% @doc Deprecated, use string:join/2.
-join(Strings, Separator) when is_integer(Separator) ->
-    lists:flatten(string:join(Strings, [Separator]));
-join(Strings, Separator) when is_list(Separator) ->
-    lists:flatten(string:join(Strings, Separator)).
+%% @spec cmd_status([string()]) -> {ExitStatus::integer(), Stdout::binary()}
+%% @doc Accumulate the output and exit status from the given application, will be
+%%      spawned with cmd_port/2.
+cmd_status(Argv) ->
+    Port = cmd_port(Argv, [exit_status, stderr_to_stdout,
+                           use_stdio, binary]),
+    try cmd_loop(Port, [])
+    after catch port_close(Port)
+    end.
+
+%% @spec cmd_loop(port(), list()) -> {ExitStatus::integer(), Stdout::binary()}
+%% @doc Accumulate the output and exit status from a port.
+cmd_loop(Port, Acc) ->
+    receive
+        {Port, {exit_status, Status}} ->
+            {Status, iolist_to_binary(lists:reverse(Acc))};
+        {Port, {data, Data}} ->
+            cmd_loop(Port, [Data | Acc])
+    end.
+
+%% @spec join([iolist()], iolist()) -> iolist()
+%% @doc Join a list of strings or binaries together with the given separator
+%%      string or char or binary. The output is flattened, but may be an
+%%      iolist() instead of a string() if any of the inputs are binary().
+join([], _Separator) ->
+    [];
+join([S], _Separator) ->
+    lists:flatten(S);
+join(Strings, Separator) ->
+    lists:flatten(revjoin(lists:reverse(Strings), Separator, [])).
+
+revjoin([], _Separator, Acc) ->
+    Acc;
+revjoin([S | Rest], Separator, []) ->
+    revjoin(Rest, Separator, [S]);
+revjoin([S | Rest], Separator, Acc) ->
+    revjoin(Rest, Separator, [S, Separator | Acc]).
 
 %% @spec quote_plus(atom() | integer() | float() | string() | binary()) -> string()
 %% @doc URL safe encoding of the given term.
@@ -224,20 +256,31 @@ urlsplit(Url) ->
     {Scheme, Netloc, Path, Query, Fragment}.
 
 urlsplit_scheme(Url) ->
-    urlsplit_scheme(Url, []).
+    case urlsplit_scheme(Url, []) of
+        no_scheme ->
+            {"", Url};
+        Res ->
+            Res
+    end.
 
-urlsplit_scheme([], Acc) ->
-    {"", lists:reverse(Acc)};
-urlsplit_scheme(":" ++ Rest, Acc) ->
+urlsplit_scheme([C | Rest], Acc) when ((C >= $a andalso C =< $z) orelse
+                                       (C >= $A andalso C =< $Z) orelse
+                                       (C >= $0 andalso C =< $9) orelse
+                                       C =:= $+ orelse C =:= $- orelse
+                                       C =:= $.) ->
+    urlsplit_scheme(Rest, [C | Acc]);
+urlsplit_scheme([$: | Rest], Acc=[_ | _]) ->
     {string:to_lower(lists:reverse(Acc)), Rest};
-urlsplit_scheme([C | Rest], Acc) ->
-    urlsplit_scheme(Rest, [C | Acc]).
+urlsplit_scheme(_Rest, _Acc) ->
+    no_scheme.
 
 urlsplit_netloc("//" ++ Rest) ->
     urlsplit_netloc(Rest, []);
 urlsplit_netloc(Path) ->
     {"", Path}.
 
+urlsplit_netloc("", Acc) ->
+    {lists:reverse(Acc), ""};
 urlsplit_netloc(Rest=[C | _], Acc) when C =:= $/; C =:= $?; C =:= $# ->
     {lists:reverse(Acc), Rest};
 urlsplit_netloc([C | Rest], Acc) ->
@@ -370,11 +413,9 @@ shell_quote([C | Rest], Acc) when C =:= $\" orelse C =:= $\` orelse
 shell_quote([C | Rest], Acc) ->
     shell_quote(Rest, [C | Acc]).
 
-%% @spec parse_qvalues(string()) -> [qvalue()] | error()
-%% @type qvalue() -> {element(), q()}
-%% @type element() -> string()
-%% @type q() -> 0.0 .. 1.0
-%% @type error() -> invalid_qvalue_string
+%% @spec parse_qvalues(string()) -> [qvalue()] | invalid_qvalue_string
+%% @type qvalue() = {encoding(), float()}.
+%% @type encoding() = string().
 %%
 %% @doc Parses a list (given as a string) of elements with Q values associated
 %%      to them. Elements are separated by commas and each element is separated
@@ -423,11 +464,8 @@ parse_qvalues(QValuesStr) ->
             invalid_qvalue_string
     end.
 
-%% @spec pick_accepted_encodings(qvalues(), [encoding()], encoding()) ->
+%% @spec pick_accepted_encodings([qvalue()], [encoding()], encoding()) ->
 %%    [encoding()]
-%% @type qvalues() -> [ {encoding(), q()} ]
-%% @type encoding() -> string()
-%% @type q() -> 0.0 .. 1.0
 %%
 %% @doc Determines which encodings specified in the given Q values list are
 %%      valid according to a list of supported encodings and a default encoding.
@@ -500,11 +538,33 @@ pick_accepted_encodings(AcceptedEncs, SupportedEncs, DefaultEnc) ->
     [E || E <- Accepted2, lists:member(E, SupportedEncs),
         not lists:member(E, Refused1)].
 
+make_io(Atom) when is_atom(Atom) ->
+    atom_to_list(Atom);
+make_io(Integer) when is_integer(Integer) ->
+    integer_to_list(Integer);
+make_io(Io) when is_list(Io); is_binary(Io) ->
+    Io.
+
 %%
 %% Tests
 %%
 -include_lib("eunit/include/eunit.hrl").
 -ifdef(TEST).
+
+make_io_test() ->
+    ?assertEqual(
+       <<"atom">>,
+       iolist_to_binary(make_io(atom))),
+    ?assertEqual(
+       <<"20">>,
+       iolist_to_binary(make_io(20))),
+    ?assertEqual(
+       <<"list">>,
+       iolist_to_binary(make_io("list"))),
+    ?assertEqual(
+       <<"binary">>,
+       iolist_to_binary(make_io(<<"binary">>))),
+    ok.
 
 -record(test_record, {field1=f1, field2=f2}).
 record_to_proplist_test() ->
@@ -523,16 +583,58 @@ record_to_proplist_test() ->
     ok.
 
 shell_quote_test() ->
-    "\"foo \\$bar\\\"\\`' baz\"" = shell_quote("foo $bar\"`' baz"),
+    ?assertEqual(
+       "\"foo \\$bar\\\"\\`' baz\"",
+       shell_quote("foo $bar\"`' baz")),
     ok.
 
+cmd_port_test_spool(Port, Acc) ->
+    receive
+        {Port, eof} ->
+            Acc;
+        {Port, {data, {eol, Data}}} ->
+            cmd_port_test_spool(Port, ["\n", Data | Acc]);
+        {Port, Unknown} ->
+            throw({unknown, Unknown})
+    after 100 ->
+            throw(timeout)
+    end.
+
+cmd_port_test() ->
+    Port = cmd_port(["echo", "$bling$ `word`!"],
+                    [eof, stream, {line, 4096}]),
+    Res = try lists:append(lists:reverse(cmd_port_test_spool(Port, [])))
+          after catch port_close(Port)
+          end,
+    self() ! {Port, wtf},
+    try cmd_port_test_spool(Port, [])
+    catch throw:{unknown, wtf} -> ok
+    end,
+    try cmd_port_test_spool(Port, [])
+    catch throw:timeout -> ok
+    end,
+    ?assertEqual(
+       "$bling$ `word`!\n",
+       Res).
+
 cmd_test() ->
-    "$bling$ `word`!\n" = cmd(["echo", "$bling$ `word`!"]),
+    ?assertEqual(
+       "$bling$ `word`!\n",
+       cmd(["echo", "$bling$ `word`!"])),
     ok.
 
 cmd_string_test() ->
-    "\"echo\" \"\\$bling\\$ \\`word\\`!\"" = cmd_string(["echo", "$bling$ `word`!"]),
+    ?assertEqual(
+       "\"echo\" \"\\$bling\\$ \\`word\\`!\"",
+       cmd_string(["echo", "$bling$ `word`!"])),
     ok.
+
+cmd_status_test() ->
+    ?assertEqual(
+       {0, <<"$bling$ `word`!\n">>},
+       cmd_status(["echo", "$bling$ `word`!"])),
+    ok.
+
 
 parse_header_test() ->
     ?assertEqual(
@@ -566,6 +668,9 @@ urlsplit_test() ->
     {"", "", "/foo", "", "bar?baz"} = urlsplit("/foo#bar?baz"),
     {"http", "host:port", "/foo", "", "bar?baz"} =
         urlsplit("http://host:port/foo#bar?baz"),
+    {"http", "host", "", "", ""} = urlsplit("http://host"),
+    {"", "", "/wiki/Category:Fruit", "", ""} =
+        urlsplit("/wiki/Category:Fruit"),
     ok.
 
 urlsplit_path_test() ->
@@ -605,6 +710,12 @@ join_test() ->
                   join(["foo"], ",")),
     ?assertEqual("foobarbaz",
                   join(["foo", "bar", "baz"], "")),
+    ?assertEqual("foo" ++ [<<>>] ++ "bar" ++ [<<>>] ++ "baz",
+                 join(["foo", "bar", "baz"], <<>>)),
+    ?assertEqual("foobar" ++ [<<"baz">>],
+                 join(["foo", "bar", <<"baz">>], "")),
+    ?assertEqual("",
+                 join([], "any")),
     ok.
 
 quote_plus_test() ->

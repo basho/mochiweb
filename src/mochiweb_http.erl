@@ -10,22 +10,12 @@
 -export([after_response/2, reentry/1]).
 -export([parse_range_request/1, range_skip_length/2]).
 
--define(IDLE_TIMEOUT, 30000).
+-define(REQUEST_RECV_TIMEOUT, 300000).   % timeout waiting for request line
+-define(HEADERS_RECV_TIMEOUT, 30000). % timeout waiting for headers
 
 -define(MAX_HEADERS, 1000).
 -define(DEFAULTS, [{name, ?MODULE},
                    {port, 8888}]).
-
-set_default({Prop, Value}, PropList) ->
-    case proplists:is_defined(Prop, PropList) of
-        true ->
-            PropList;
-        false ->
-            [{Prop, Value} | PropList]
-    end.
-
-set_defaults(Defaults, PropList) ->
-    lists:foldl(fun set_default/2, PropList, Defaults).
 
 parse_options(Options) ->
     {loop, HttpLoop} = proplists:lookup(loop, Options),
@@ -33,7 +23,7 @@ parse_options(Options) ->
                    ?MODULE:loop(S, HttpLoop)
            end,
     Options1 = [{loop, Loop} | proplists:delete(loop, Options)],
-    set_defaults(?DEFAULTS, Options1).
+    mochilists:set_defaults(?DEFAULTS, Options1).
 
 stop() ->
     mochiweb_socket_server:stop(?MODULE).
@@ -96,23 +86,24 @@ default_body(Req) ->
     default_body(Req, Req:get(method), Req:get(path)).
 
 loop(Socket, Body) ->
-    inet:setopts(Socket, [{packet, http}]),
+    mochiweb_socket:setopts(Socket, [{packet, http}]),
     request(Socket, Body).
 
 request(Socket, Body) ->
-    case gen_tcp:recv(Socket, 0, ?IDLE_TIMEOUT) of
+    case mochiweb_socket:recv(Socket, 0, ?REQUEST_RECV_TIMEOUT) of
         {ok, {http_request, Method, Path, Version}} ->
+            mochiweb_socket:setopts(Socket, [{packet, httph}]),
             headers(Socket, {Method, Path, Version}, [], Body, 0);
         {error, {http_error, "\r\n"}} ->
             request(Socket, Body);
         {error, {http_error, "\n"}} ->
             request(Socket, Body);
         {error, closed} ->
-            gen_tcp:close(Socket),
+            mochiweb_socket:close(Socket),
             exit(normal);
         {error, timeout} ->
-            gen_tcp:close(Socket),
-            exit(normal);            
+            mochiweb_socket:close(Socket),
+            exit(normal);
         _Other ->
             handle_invalid_request(Socket)
     end.
@@ -124,42 +115,47 @@ reentry(Body) ->
 
 headers(Socket, Request, Headers, _Body, ?MAX_HEADERS) ->
     %% Too many headers sent, bad request.
-    inet:setopts(Socket, [{packet, raw}]),
+    mochiweb_socket:setopts(Socket, [{packet, raw}]),
     handle_invalid_request(Socket, Request, Headers);
 headers(Socket, Request, Headers, Body, HeaderCount) ->
-    case gen_tcp:recv(Socket, 0, ?IDLE_TIMEOUT) of
+    case mochiweb_socket:recv(Socket, 0, ?HEADERS_RECV_TIMEOUT) of
         {ok, http_eoh} ->
-            inet:setopts(Socket, [{packet, raw}]),
+            mochiweb_socket:setopts(Socket, [{packet, raw}]),
             Req = mochiweb:new_request({Socket, Request,
                                         lists:reverse(Headers)}),
-            Body(Req),
+            call_body(Body, Req),
             ?MODULE:after_response(Body, Req);
         {ok, {http_header, _, Name, _, Value}} ->
             headers(Socket, Request, [{Name, Value} | Headers], Body,
                     1 + HeaderCount);
         {error, closed} ->
-            gen_tcp:close(Socket),
+            mochiweb_socket:close(Socket),
             exit(normal);
         _Other ->
             handle_invalid_request(Socket, Request, Headers)
     end.
 
+call_body({M, F}, Req) ->
+    M:F(Req);
+call_body(Body, Req) ->
+    Body(Req).
+
 handle_invalid_request(Socket) ->
     handle_invalid_request(Socket, {'GET', {abs_path, "/"}, {0,9}}, []).
 
 handle_invalid_request(Socket, Request, RevHeaders) ->
-    inet:setopts(Socket, [{packet, raw}]),
+    mochiweb_socket:setopts(Socket, [{packet, raw}]),
     Req = mochiweb:new_request({Socket, Request,
                                 lists:reverse(RevHeaders)}),
     Req:respond({400, [], []}),
-    gen_tcp:close(Socket),
+    mochiweb_socket:close(Socket),
     exit(normal).
 
 after_response(Body, Req) ->
     Socket = Req:get(socket),
     case Req:should_close() of
         true ->
-            gen_tcp:close(Socket),
+            mochiweb_socket:close(Socket),
             exit(normal);
         false ->
             Req:cleanup(),

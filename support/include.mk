@@ -28,6 +28,7 @@ ERL_OBJECTS := $(ERL_SOURCES:%.erl=$(EBIN_DIR)/%.$(EMULATOR))
 ERL_OBJECTS_LOCAL := $(ERL_SOURCES:%.erl=./%.$(EMULATOR))
 APP_FILES := $(wildcard *.app)
 EBIN_FILES = $(ERL_OBJECTS) $(APP_FILES:%.app=../ebin/%.app)
+#EBIN_FILES = $(ERL_OBJECTS) $(APP_FILES:%.app=../ebin/%.app)
 MODULES = $(ERL_SOURCES:%.erl=%)
 
 ../ebin/%.app: %.app
