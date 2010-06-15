@@ -1,17 +1,16 @@
-all:
-	(cd src;$(MAKE) all)
+all:  compile
+
+compile: 
+	./rebar compile
 
 edoc:
-	(cd src;$(MAKE) edoc)
+	./rebar doc
 
 test:
-	(cd src;$(MAKE) test)
+	./rebar eunit
 
 clean:
-	(cd src;$(MAKE) clean)
-
-clean_plt:
-	(cd src;$(MAKE) clean_plt)
+	./rebar clean
 
 dialyzer:
-	(cd src;$(MAKE) dialyzer)
+	./rebar analyze
