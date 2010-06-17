@@ -108,6 +108,9 @@ start_server(State=#mochiweb_socket_server{ssl=Ssl, name=Name}) ->
     case Ssl of
         true ->
             application:start(crypto),
+            application:load(ssl),
+            {ok, SSLApps} = application:get_key(ssl, applications),
+            [application:start(App) || App <- SSLApps],
             application:start(ssl);
         false ->
             void
