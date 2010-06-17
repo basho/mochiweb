@@ -1,6 +1,6 @@
 {application, mochiweb,
  [{description, "MochiMedia Web Server"},
-  {vsn, "1.7.0"},
+  {vsn, "1.7.1"},
   {modules, [
         mochifmt,
         mochiglobal,            
