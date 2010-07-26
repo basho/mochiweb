@@ -378,7 +378,7 @@ parse3(Transport) ->
     TestCallback = fun (Next) -> test_callback(Next, Expect) end,
     ServerFun = fun (Socket) ->
                         ok = mochiweb_socket:send(Socket, BinContent),
-			exit(normal)
+                        exit(normal)
                 end,
     ClientFun = fun (Socket) ->
                         Req = fake_request(Socket, ContentType,
@@ -414,7 +414,7 @@ parse2(Transport) ->
     TestCallback = fun (Next) -> test_callback(Next, Expect) end,
     ServerFun = fun (Socket) ->
                         ok = mochiweb_socket:send(Socket, BinContent),
-			exit(normal)
+                        exit(normal)
                 end,
     ClientFun = fun (Socket) ->
                         Req = fake_request(Socket, ContentType,
@@ -451,7 +451,7 @@ do_parse_form(Transport) ->
     BinContent = iolist_to_binary(Content),
     ServerFun = fun (Socket) ->
                         ok = mochiweb_socket:send(Socket, BinContent),
-			exit(normal)
+                        exit(normal)
                 end,
     ClientFun = fun (Socket) ->
                         Req = fake_request(Socket, ContentType,
@@ -504,7 +504,7 @@ do_parse(Transport) ->
     TestCallback = fun (Next) -> test_callback(Next, Expect) end,
     ServerFun = fun (Socket) ->
                         ok = mochiweb_socket:send(Socket, BinContent),
-			exit(normal)
+                        exit(normal)
                 end,
     ClientFun = fun (Socket) ->
                         Req = fake_request(Socket, ContentType,
@@ -556,7 +556,7 @@ parse_partial_body_boundary(Transport) ->
     TestCallback = fun (Next) -> test_callback(Next, Expect) end,
     ServerFun = fun (Socket) ->
                         ok = mochiweb_socket:send(Socket, BinContent),
-			exit(normal)
+                        exit(normal)
                 end,
     ClientFun = fun (Socket) ->
                         Req = fake_request(Socket, ContentType,
@@ -609,7 +609,7 @@ parse_large_header(Transport) ->
     TestCallback = fun (Next) -> test_callback(Next, Expect) end,
     ServerFun = fun (Socket) ->
                         ok = mochiweb_socket:send(Socket, BinContent),
-			exit(normal)
+                        exit(normal)
                 end,
     ClientFun = fun (Socket) ->
                         Req = fake_request(Socket, ContentType,
@@ -685,7 +685,7 @@ flash_parse(Transport) ->
     TestCallback = fun (Next) -> test_callback(Next, Expect) end,
     ServerFun = fun (Socket) ->
                         ok = mochiweb_socket:send(Socket, BinContent),
-			exit(normal)
+                        exit(normal)
                 end,
     ClientFun = fun (Socket) ->
                         Req = fake_request(Socket, ContentType,
@@ -733,7 +733,7 @@ flash_parse2(Transport) ->
     TestCallback = fun (Next) -> test_callback(Next, Expect) end,
     ServerFun = fun (Socket) ->
                         ok = mochiweb_socket:send(Socket, BinContent),
-			exit(normal)
+                        exit(normal)
                 end,
     ClientFun = fun (Socket) ->
                         Req = fake_request(Socket, ContentType,

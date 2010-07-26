@@ -23,7 +23,7 @@
         mochiweb_io,
         mochiweb_html,
         mochiweb_http,
-    	mochiweb_mime,
+        mochiweb_mime,
         mochiweb_multipart,
         mochiweb_request,
         mochiweb_response,
@@ -35,7 +35,7 @@
         reloader,
         mochifmt_std,
         mochifmt_records
-	    ]},
+            ]},
   {registered, []},
   {mod, {mochiweb_app, []}},
   {env, []},

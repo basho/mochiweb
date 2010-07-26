@@ -16,7 +16,7 @@
         mochiweb_headers,
         mochiweb_html,
         mochiweb_http,
-    	mochiweb_mime,
+        mochiweb_mime,
         mochiweb_multipart,
         mochiweb_request,
         mochiweb_response,
@@ -28,7 +28,7 @@
         mochifmt,
         mochifmt_std,
         mochifmt_records
-	    ]},
+            ]},
   {registered, []},
   {mod, {mochiweb_app, []}},
   {env, []},
