@@ -48,17 +48,17 @@ find_last_newline(_FD, N) when N =< 1 ->
     0;
 find_last_newline(FD, Location) ->
     case file:pread(FD, Location - 1, 1) of
-        {ok, <<$\n>>} ->
+	{ok, <<$\n>>} ->
             Location;
-        {ok, _} ->
-            find_last_newline(FD, Location - 1)
+	{ok, _} ->
+	    find_last_newline(FD, Location - 1)
     end.
 
 %%
 %% Tests
 %%
--include_lib("eunit/include/eunit.hrl").
 -ifdef(TEST).
+-include_lib("eunit/include/eunit.hrl").
 name_test() ->
     D = mochitemp:mkdtemp(),
     FileName = filename:join(D, "open_close_test.log"),

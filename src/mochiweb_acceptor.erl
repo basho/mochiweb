@@ -22,7 +22,7 @@ init(Server, Listen, Loop) ->
         {error, closed} ->
             exit(normal);
         {error, timeout} ->
-            exit(normal);
+            init(Server, Listen, Loop);
         {error, esslaccept} ->
             exit(normal);
         Other ->
@@ -35,6 +35,8 @@ init(Server, Listen, Loop) ->
 
 call_loop({M, F}, Socket) ->
     M:F(Socket);
+call_loop({M, F, [A1]}, Socket) ->
+    M:F(Socket, A1);
 call_loop({M, F, A}, Socket) ->
     erlang:apply(M, F, [Socket | A]);
 call_loop(Loop, Socket) ->
@@ -43,6 +45,6 @@ call_loop(Loop, Socket) ->
 %%
 %% Tests
 %%
--include_lib("eunit/include/eunit.hrl").
 -ifdef(TEST).
+-include_lib("eunit/include/eunit.hrl").
 -endif.

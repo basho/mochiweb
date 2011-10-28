@@ -5,8 +5,9 @@
 %%      invalid bytes.
 
 -module(mochiutf8).
--export([valid_utf8_bytes/1, codepoint_to_bytes/1, bytes_to_codepoints/1]).
--export([bytes_foldl/3, codepoint_foldl/3, read_codepoint/1, len/1]).
+-export([valid_utf8_bytes/1, codepoint_to_bytes/1, codepoints_to_bytes/1]).
+-export([bytes_to_codepoints/1, bytes_foldl/3, codepoint_foldl/3]).
+-export([read_codepoint/1, len/1]).
 
 %% External API
 
@@ -148,7 +149,7 @@ invalid_utf8_indexes(<<C1, C2, Rest/binary>>, N, Acc)
        C2 band 16#C0 =:= 16#80 ->
     %% U+0080 - U+07FF - 11 bits
     case ((C1 band 16#1F) bsl 6) bor (C2 band 16#3F) of
-        C when C < 16#80 ->
+	C when C < 16#80 ->
             %% Overlong encoding.
             invalid_utf8_indexes(Rest, 2 + N, [1 + N, N | Acc]);
         _ ->
@@ -161,13 +162,13 @@ invalid_utf8_indexes(<<C1, C2, C3, Rest/binary>>, N, Acc)
        C3 band 16#C0 =:= 16#80 ->
     %% U+0800 - U+FFFF - 16 bits
     case ((((C1 band 16#0F) bsl 6) bor (C2 band 16#3F)) bsl 6) bor
-        (C3 band 16#3F) of
-        C when (C < 16#800) orelse (C >= 16#D800 andalso C =< 16#DFFF) ->
-            %% Overlong encoding or surrogate.
+	(C3 band 16#3F) of
+	C when (C < 16#800) orelse (C >= 16#D800 andalso C =< 16#DFFF) ->
+	    %% Overlong encoding or surrogate.
             invalid_utf8_indexes(Rest, 3 + N, [2 + N, 1 + N, N | Acc]);
-        _ ->
+	_ ->
             %% Upper bound U+FFFF does not need to be checked
-            invalid_utf8_indexes(Rest, 3 + N, Acc)
+	    invalid_utf8_indexes(Rest, 3 + N, Acc)
     end;
 invalid_utf8_indexes(<<C1, C2, C3, C4, Rest/binary>>, N, Acc)
   when C1 band 16#F8 =:= 16#F0,
@@ -177,11 +178,11 @@ invalid_utf8_indexes(<<C1, C2, C3, C4, Rest/binary>>, N, Acc)
     %% U+10000 - U+10FFFF - 21 bits
     case ((((((C1 band 16#0F) bsl 6) bor (C2 band 16#3F)) bsl 6) bor
            (C3 band 16#3F)) bsl 6) bor (C4 band 16#3F) of
-        C when (C < 16#10000) orelse (C > 16#10FFFF) ->
-            %% Overlong encoding or invalid code point.
-            invalid_utf8_indexes(Rest, 4 + N, [3 + N, 2 + N, 1 + N, N | Acc]);
-        _ ->
-            invalid_utf8_indexes(Rest, 4 + N, Acc)
+	C when (C < 16#10000) orelse (C > 16#10FFFF) ->
+	    %% Overlong encoding or invalid code point.
+	    invalid_utf8_indexes(Rest, 4 + N, [3 + N, 2 + N, 1 + N, N | Acc]);
+	_ ->
+	    invalid_utf8_indexes(Rest, 4 + N, Acc)
     end;
 invalid_utf8_indexes(<<_, Rest/binary>>, N, Acc) ->
     %% Invalid char
@@ -192,8 +193,8 @@ invalid_utf8_indexes(<<>>, _N, Acc) ->
 %%
 %% Tests
 %%
--include_lib("eunit/include/eunit.hrl").
 -ifdef(TEST).
+-include_lib("eunit/include/eunit.hrl").
 
 binary_skip_bytes_test() ->
     ?assertEqual(<<"foo">>,
