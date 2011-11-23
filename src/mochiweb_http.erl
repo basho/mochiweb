@@ -108,9 +108,9 @@ request(Socket, Body, Prev) ->
                 {ok, {http_request, Method, Path, Version}, <<>>} ->
                     collect_headers(Socket, {Method, Path, Version}, Body,
                                     <<>>, false, 0);
-                {error, {http_error, "\r\n"}} ->
+                {ok, {http_error, "\r\n"}, <<>>} ->
                     request(Socket, Body, <<>>);
-                {error, {http_error, "\n"}} ->
+                {ok, {http_error, "\n"}, <<>>} ->
                     request(Socket, Body, <<>>);
                 {more, _} ->
                     request(Socket, Body, FullBin)
