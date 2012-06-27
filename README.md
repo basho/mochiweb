@@ -1,5 +1,7 @@
 MochiWeb is an Erlang library for building lightweight HTTP servers.
 
+[![Build Status](https://secure.travis-ci.org/basho/mochiweb.png?branch=master)](http://travis-ci.org/basho/mochiweb)
+
 The latest version of MochiWeb is available at http://github.com/mochi/mochiweb
 
 The mailing list for MochiWeb is at http://groups.google.com/group/mochiweb/
