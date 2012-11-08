@@ -128,11 +128,16 @@ lookup(K, T) ->
 %% @doc Insert the pair into the headers if it does not already exist.
 default(K, V, T) ->
     K1 = normalize(K),
-    V1 = any_to_list(V),
-    try gb_trees:insert(K1, {K, V1}, T)
-    catch
-        error:{key_exists, _} ->
-            T
+    V1 = string:strip(any_to_list(V)),
+    case V1 of
+        [] ->
+            T;
+        _ ->
+            try gb_trees:insert(K1, {K, V1}, T)
+            catch
+                error:{key_exists, _} ->
+                    T
+            end
     end.
 
 %% @spec enter(key(), value(), headers()) -> headers()
@@ -147,13 +152,18 @@ enter(K, V, T) ->
 %%      A merge is done with Value = V0 ++ ", " ++ V1.
 insert(K, V, T) ->
     K1 = normalize(K),
-    V1 = any_to_list(V),
-    try gb_trees:insert(K1, {K, V1}, T)
-    catch
-        error:{key_exists, _} ->
-            {K0, V0} = gb_trees:get(K1, T),
-            V2 = merge(K1, V1, V0),
-            gb_trees:update(K1, {K0, V2}, T)
+    V1 = string:strip(any_to_list(V)),
+    case V1 of
+        [] ->
+            T;
+        _ ->
+            try gb_trees:insert(K1, {K, V1}, T)
+            catch
+                error:{key_exists, _} ->
+                    {K0, V0} = gb_trees:get(K1, T),
+                    V2 = merge(K1, V1, V0),
+                    gb_trees:update(K1, {K0, V2}, T)
+            end
     end.
 
 %% @spec delete_any(key(), headers()) -> headers()
@@ -264,6 +274,12 @@ headers_test() ->
                                              "content-type", H4),
     H4 = ?MODULE:delete_any("nonexistent-header", H4),
     H3 = ?MODULE:delete_any("content-type", H4),
+    H5 = ?MODULE:insert("content-type", " ", H3),
+    undefined = ?MODULE:get_value("content-type", H5),
+    H6 = ?MODULE:insert("content-type", "   ", H3),
+    undefined = ?MODULE:get_value("content-type", H6),
+    H7 = ?MODULE:insert("content-type", " text/plain  ", H3),
+    "text/plain" = ?MODULE:get_value("content-type", H7),
     HB = <<"Content-Length: 47\r\nContent-Type: text/plain\r\n\r\n">>,
     H_HB = ?MODULE:from_binary(HB),
     H_HB = ?MODULE:from_binary(binary_to_list(HB)),
