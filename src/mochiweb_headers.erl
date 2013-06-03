@@ -129,15 +129,10 @@ lookup(K, T) ->
 default(K, V, T) ->
     K1 = normalize(K),
     V1 = string:strip(any_to_list(V)),
-    case V1 of
-        [] ->
-            T;
-        _ ->
-            try gb_trees:insert(K1, {K, V1}, T)
-            catch
-                error:{key_exists, _} ->
-                    T
-            end
+    try gb_trees:insert(K1, {K, V1}, T)
+    catch
+        error:{key_exists, _} ->
+            T
     end.
 
 %% @spec enter(key(), value(), headers()) -> headers()
@@ -153,17 +148,12 @@ enter(K, V, T) ->
 insert(K, V, T) ->
     K1 = normalize(K),
     V1 = string:strip(any_to_list(V)),
-    case V1 of
-        [] ->
-            T;
-        _ ->
-            try gb_trees:insert(K1, {K, V1}, T)
-            catch
-                error:{key_exists, _} ->
-                    {K0, V0} = gb_trees:get(K1, T),
-                    V2 = merge(K1, V1, V0),
-                    gb_trees:update(K1, {K0, V2}, T)
-            end
+    try gb_trees:insert(K1, {K, V1}, T)
+    catch
+        error:{key_exists, _} ->
+            {K0, V0} = gb_trees:get(K1, T),
+            V2 = merge(K1, V1, V0),
+            gb_trees:update(K1, {K0, V2}, T)
     end.
 
 %% @spec delete_any(key(), headers()) -> headers()
