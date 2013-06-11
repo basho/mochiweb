@@ -129,15 +129,10 @@ lookup(K, T) ->
 default(K, V, T) ->
     K1 = normalize(K),
     V1 = string:strip(any_to_list(V)),
-    case V1 of
-        [] ->
-            T;
-        _ ->
-            try gb_trees:insert(K1, {K, V1}, T)
-            catch
-                error:{key_exists, _} ->
-                    T
-            end
+    try gb_trees:insert(K1, {K, V1}, T)
+    catch
+        error:{key_exists, _} ->
+            T
     end.
 
 %% @spec enter(key(), value(), headers()) -> headers()
@@ -153,17 +148,12 @@ enter(K, V, T) ->
 insert(K, V, T) ->
     K1 = normalize(K),
     V1 = string:strip(any_to_list(V)),
-    case V1 of
-        [] ->
-            T;
-        _ ->
-            try gb_trees:insert(K1, {K, V1}, T)
-            catch
-                error:{key_exists, _} ->
-                    {K0, V0} = gb_trees:get(K1, T),
-                    V2 = merge(K1, V1, V0),
-                    gb_trees:update(K1, {K0, V2}, T)
-            end
+    try gb_trees:insert(K1, {K, V1}, T)
+    catch
+        error:{key_exists, _} ->
+            {K0, V0} = gb_trees:get(K1, T),
+            V2 = merge(K1, V1, V0),
+            gb_trees:update(K1, {K0, V2}, T)
     end.
 
 %% @spec delete_any(key(), headers()) -> headers()
@@ -275,9 +265,9 @@ headers_test() ->
     H4 = ?MODULE:delete_any("nonexistent-header", H4),
     H3 = ?MODULE:delete_any("content-type", H4),
     H5 = ?MODULE:insert("content-type", " ", H3),
-    undefined = ?MODULE:get_value("content-type", H5),
+    [] = ?MODULE:get_value("content-type", H5),
     H6 = ?MODULE:insert("content-type", "   ", H3),
-    undefined = ?MODULE:get_value("content-type", H6),
+    [] = ?MODULE:get_value("content-type", H6),
     H7 = ?MODULE:insert("content-type", " text/plain  ", H3),
     "text/plain" = ?MODULE:get_value("content-type", H7),
     HB = <<"Content-Length: 47\r\nContent-Type: text/plain\r\n\r\n">>,
