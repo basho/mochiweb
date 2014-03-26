@@ -1,3 +1,90 @@
+Version 2.8.1 released XXXX-XX-XX
+
+* Increased timeout in test suite for FreeBSD
+  https://github.com/mochi/mochiweb/pull/121
+
+Version 2.8.0 released 2014-01-01
+
+* Websocket support
+  https://github.com/mochi/mochiweb/pull/120
+* Force files named "crossdomain.xml" to have MIME type
+  text/x-cross-domain-policy.
+  https://github.com/mochi/mochiweb/pull/118
+
+Version 2.7.0 released 2013-08-01
+
+* Fix 0-length range responses
+  https://github.com/mochi/mochiweb/pull/87
+* Add support for all possible `erlang:decode_packet/3` responses,
+  previously these would just crash.
+  https://github.com/mochi/mochiweb/pull/114
+* Makefile fixed to make `make test` work before `make all`
+  https://github.com/mochi/mochiweb/pull/116
+* Usage of the crypto module made R16B01+ compatible
+  https://github.com/mochi/mochiweb/pull/115
+* Build fixed for R16B01
+  https://github.com/mochi/mochiweb/pull/112
+* `mochiweb_socket_server:stop/1` is now a synchronous
+  call instead of an asynchronous cast
+* `mochiweb_html:parse_tokens/1` (and `parse/1`) will now create a
+  html element to wrap documents that have a HTML5 doctype
+  (`<!doctype html>`) but no html element 
+  https://github.com/mochi/mochiweb/issues/110
+
+Version 2.6.0 released 2013-04-15
+
+* Enable R15B gen_tcp workaround only on R15B
+  https://github.com/mochi/mochiweb/pull/107
+
+Version 2.5.0 released 2013-03-04
+
+* Replace now() with os:timestamp() in acceptor (optimization)
+  https://github.com/mochi/mochiweb/pull/102
+* New mochiweb_session module for managing session cookies.
+  NOTE: this module is only supported on R15B02 and later!
+  https://github.com/mochi/mochiweb/pull/94
+* New mochiweb_base64url module for base64url encoding
+  (URL and Filename safe alphabet, see RFC 4648).
+* Fix rebar.config in mochiwebapp_skel to use {branch, "master"}
+  https://github.com/mochi/mochiweb/issues/105
+  
+Version 2.4.2 released 2013-02-05
+
+* Fixed issue in mochiweb_response introduced in v2.4.0
+  https://github.com/mochi/mochiweb/pull/100
+
+Version 2.4.1 released 2013-01-30
+
+* Fixed issue in mochiweb_request introduced in v2.4.0
+  https://github.com/mochi/mochiweb/issues/97
+* Fixed issue in mochifmt_records introduced in v2.4.0
+  https://github.com/mochi/mochiweb/issues/96
+
+Version 2.4.0 released 2013-01-23
+
+* Switch from parameterized modules to explicit tuple module calls for
+  R16 compatibility (#95)
+* Fix for mochiweb_acceptor crash with extra-long HTTP headers under
+  R15B02 (#91)
+* Fix case in handling range headers (#85)
+* Handle combined Content-Length header (#88)
+* Windows security fix for `safe_relative_path`, any path with a
+  backslash on any platform is now considered unsafe (#92)
+
+Version 2.3.2 released 2012-07-27
+
+* Case insensitive match for "Connection: close" (#81)
+
+Version 2.3.1 released 2012-03-31
+
+* Fix edoc warnings (#63)
+* Fix mochiweb_html handling of invalid charref sequences (unescaped &) (#69).
+* Add a manual garbage collection between requests to avoid worst case behavior
+  on keep-alive sockets.
+* Fix dst cookie bug (#73)
+* Removed unnecessary template_dir option, see
+  https://github.com/basho/rebar/issues/203
+
 Version 2.3.0 released 2011-10-14
 
 * Handle ssl_closed message in mochiweb_http (#59)
@@ -26,4 +113,3 @@ Version 2.1.0 released 2011-08-29
 * Added new `mochijson2:decode/2` with `{format, struct | proplist | eep18}`
   options for easy decoding to various proplist formats. Also added encoding
   support for eep18 style objects.
-

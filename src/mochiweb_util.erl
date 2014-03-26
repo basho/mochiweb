@@ -68,11 +68,17 @@ partition2(_S, _Sep) ->
 %% @spec safe_relative_path(string()) -> string() | undefined
 %% @doc Return the reduced version of a relative path or undefined if it
 %%      is not safe. safe relative paths can be joined with an absolute path
-%%      and will result in a subdirectory of the absolute path.
+%%      and will result in a subdirectory of the absolute path. Safe paths
+%%      never contain a backslash character.
 safe_relative_path("/" ++ _) ->
     undefined;
 safe_relative_path(P) ->
-    safe_relative_path(P, []).
+    case string:chr(P, $\\) of
+        0 ->
+           safe_relative_path(P, []);
+        _ ->
+           undefined
+    end.
 
 safe_relative_path("", Acc) ->
     case Acc of
@@ -351,11 +357,16 @@ urlsplit_query([C | Rest], Acc) ->
 %% @spec guess_mime(string()) -> string()
 %% @doc  Guess the mime type of a file by the extension of its filename.
 guess_mime(File) ->
-    case mochiweb_mime:from_extension(filename:extension(File)) of
-        undefined ->
-            "text/plain";
-        Mime ->
-            Mime
+    case filename:basename(File) of
+        "crossdomain.xml" ->
+            "text/x-cross-domain-policy";
+        Name ->
+            case mochiweb_mime:from_extension(filename:extension(Name)) of
+                undefined ->
+                    "text/plain";
+                Mime ->
+                    Mime
+            end
     end.
 
 %% @spec parse_header(string()) -> {Type, [{K, V}]}
@@ -680,12 +691,14 @@ parse_header_test() ->
     ok.
 
 guess_mime_test() ->
-    "text/plain" = guess_mime(""),
-    "text/plain" = guess_mime(".text"),
-    "application/zip" = guess_mime(".zip"),
-    "application/zip" = guess_mime("x.zip"),
-    "text/html" = guess_mime("x.html"),
-    "application/xhtml+xml" = guess_mime("x.xhtml"),
+    ?assertEqual("text/plain", guess_mime("")),
+    ?assertEqual("text/plain", guess_mime(".text")),
+    ?assertEqual("application/zip", guess_mime(".zip")),
+    ?assertEqual("application/zip", guess_mime("x.zip")),
+    ?assertEqual("text/html", guess_mime("x.html")),
+    ?assertEqual("application/xhtml+xml", guess_mime("x.xhtml")),
+    ?assertEqual("text/x-cross-domain-policy", guess_mime("crossdomain.xml")),
+    ?assertEqual("text/x-cross-domain-policy", guess_mime("www/crossdomain.xml")),
     ok.
 
 path_split_test() ->
@@ -815,6 +828,7 @@ safe_relative_path_test() ->
     undefined = safe_relative_path("../foo"),
     undefined = safe_relative_path("foo/../.."),
     undefined = safe_relative_path("foo//"),
+    undefined = safe_relative_path("foo\\bar"),
     ok.
 
 parse_qvalues_test() ->

@@ -12,7 +12,7 @@
 -define(QUIP, "Any of you quaids got a smint?").
 
 -export([new/5]).
--export([get_header_value/2, get_primary_header_value/2, get/2, dump/1]).
+-export([get_header_value/2, get_primary_header_value/2, get_combined_header_value/2, get/2, dump/1]).
 -export([send/2, recv/2, recv/3, recv_body/1, recv_body/2, stream_body/4]).
 -export([start_response/2, start_response_length/2, start_raw_response/2]).
 -export([respond/2, ok/2]).
@@ -33,13 +33,11 @@
 -define(SAVE_COOKIE, mochiweb_request_cookie).
 -define(SAVE_FORCE_CLOSE, mochiweb_request_force_close).
 
-%% @type iolist() = [iolist() | binary() | char()].
-%% @type iodata() = binary() | iolist().
 %% @type key() = atom() | string() | binary()
 %% @type value() = atom() | string() | binary() | integer()
 %% @type headers(). A mochiweb_headers structure.
 %% @type request() = {mochiweb_request,[_Socket,_Method,_RawPath,_Version,_Headers]}
-%% @type response(). A mochiweb_response parameterized module instance.
+%% @type response(). A mochiweb_response tuple module instance.
 %% @type ioheaders() = headers() | [{key(), value()}].
 
 % 5 minute default idle timeout
@@ -60,6 +58,9 @@ get_header_value(K, {?MODULE, [_Socket, _Method, _RawPath, _Version, Headers]}) 
 
 get_primary_header_value(K, {?MODULE, [_Socket, _Method, _RawPath, _Version, Headers]}) ->
     mochiweb_headers:get_primary_value(K, Headers).
+
+get_combined_header_value(K, {?MODULE, [_Socket, _Method, _RawPath, _Version, Headers]}) ->
+    mochiweb_headers:get_combined_value(K, Headers).
 
 %% @type field() = socket | scheme | method | raw_path | version | headers | peer | path | body_length | range
 
@@ -176,7 +177,7 @@ recv(Length, Timeout, {?MODULE, [Socket, _Method, _RawPath, _Version, _Headers]}
 body_length({?MODULE, [_Socket, _Method, _RawPath, _Version, _Headers]}=THIS) ->
     case get_header_value("transfer-encoding", THIS) of
         undefined ->
-            case get_header_value("content-length", THIS) of
+            case get_combined_header_value("content-length", THIS) of
                 undefined ->
                     undefined;
                 Length ->
@@ -305,7 +306,9 @@ respond({Code, ResponseHeaders, {file, IoDevice}},
         'HEAD' ->
             ok;
         _ ->
-            mochiweb_io:iodevice_stream(fun send/2, IoDevice)
+            mochiweb_io:iodevice_stream(
+              fun (Body) -> send(Body, THIS) end,
+              IoDevice)
     end,
     Response;
 respond({Code, ResponseHeaders, chunked}, {?MODULE, [_Socket, Method, _RawPath, Version, _Headers]}=THIS) ->
@@ -395,16 +398,23 @@ should_close({?MODULE, [_Socket, _Method, _RawPath, Version, _Headers]}=THIS) ->
     DidNotRecv = erlang:get(?SAVE_RECV) =:= undefined,
     ForceClose orelse Version < {1, 0}
         %% Connection: close
-        orelse get_header_value("connection", THIS) =:= "close"
+        orelse is_close(get_header_value("connection", THIS))
         %% HTTP 1.0 requires Connection: Keep-Alive
         orelse (Version =:= {1, 0}
                 andalso get_header_value("connection", THIS) =/= "Keep-Alive")
         %% unread data left on the socket, can't safely continue
         orelse (DidNotRecv
-                andalso get_header_value("content-length", THIS) =/= undefined
-                andalso list_to_integer(get_header_value("content-length", THIS)) > 0)
+                andalso get_combined_header_value("content-length", THIS) =/= undefined
+                andalso list_to_integer(get_combined_header_value("content-length", THIS)) > 0)
         orelse (DidNotRecv
                 andalso get_header_value("transfer-encoding", THIS) =:= "chunked").
+
+is_close("close") ->
+    true;
+is_close(S=[_C, _L, _O, _S, _E]) ->
+    string:to_lower(S) =:= "close";
+is_close(_) ->
+    false.
 
 %% @spec cleanup(request()) -> ok
 %% @doc Clean up any junk in the process dictionary, required before continuing
@@ -662,7 +672,12 @@ range_parts({file, IoDevice}, Ranges) ->
     LocNums = lists:foldr(F, [], Ranges),
     {ok, Data} = file:pread(IoDevice, LocNums),
     Bodies = lists:zipwith(fun ({Skip, Length}, PartialBody) ->
-                                   {Skip, Skip + Length - 1, PartialBody}
+                                   case Length of
+                                       0 ->
+                                           {Skip, Skip, <<>>};
+                                       _ ->
+                                           {Skip, Skip + Length - 1, PartialBody}
+                                   end
                            end,
                            LocNums, Data),
     {Bodies, Size};

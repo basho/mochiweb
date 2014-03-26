@@ -17,6 +17,12 @@
 -define(DEFAULTS, [{name, ?MODULE},
                    {port, 8888}]).
 
+-ifdef(gen_tcp_r15b_workaround).
+r15b_workaround() -> true.
+-else.
+r15b_workaround() -> false.
+-endif.
+
 parse_options(Options) ->
     {loop, HttpLoop} = proplists:lookup(loop, Options),
     Loop = {?MODULE, loop, [HttpLoop]},
@@ -66,8 +72,8 @@ request(Socket, Body) ->
         {ssl_closed, _} ->
             mochiweb_socket:close(Socket),
             exit(normal);
-        _Other ->
-            handle_invalid_request(Socket)
+        Other ->
+            handle_invalid_msg_request(Other, Socket)
     after ?REQUEST_RECV_TIMEOUT ->
         mochiweb_socket:close(Socket),
         exit(normal)
@@ -95,8 +101,8 @@ headers(Socket, Request, Headers, Body, HeaderCount) ->
         {tcp_closed, _} ->
             mochiweb_socket:close(Socket),
             exit(normal);
-        _Other ->
-            handle_invalid_request(Socket, Request, Headers)
+        Other ->
+            handle_invalid_msg_request(Other, Socket, Request, Headers)
     after ?HEADERS_RECV_TIMEOUT ->
         mochiweb_socket:close(Socket),
         exit(normal)
@@ -109,10 +115,20 @@ call_body({M, F}, Req) ->
 call_body(Body, Req) ->
     Body(Req).
 
--spec handle_invalid_request(term()) -> no_return().
-handle_invalid_request(Socket) ->
-    handle_invalid_request(Socket, {'GET', {abs_path, "/"}, {0,9}}, []),
-    exit(normal).
+-spec handle_invalid_msg_request(term(), term()) -> no_return().
+handle_invalid_msg_request(Msg, Socket) ->
+    handle_invalid_msg_request(Msg, Socket, {'GET', {abs_path, "/"}, {0,9}}, []).
+
+-spec handle_invalid_msg_request(term(), term(), term(), term()) -> no_return().
+handle_invalid_msg_request(Msg, Socket, Request, RevHeaders) ->
+    case {Msg, r15b_workaround()} of
+        {{tcp_error,_,emsgsize}, true} ->
+            %% R15B02 returns this then closes the socket, so close and exit
+            mochiweb_socket:close(Socket),
+            exit(normal);
+        _ ->
+            handle_invalid_request(Socket, Request, RevHeaders)
+    end.
 
 -spec handle_invalid_request(term(), term(), term()) -> no_return().
 handle_invalid_request(Socket, Request, RevHeaders) ->
@@ -133,6 +149,7 @@ after_response(Body, Req) ->
             exit(normal);
         false ->
             Req:cleanup(),
+            erlang:garbage_collect(),
             ?MODULE:loop(Socket, Body)
     end.
 
@@ -141,7 +158,8 @@ parse_range_request("bytes=0-") ->
 parse_range_request(RawRange) when is_list(RawRange) ->
     try
         "bytes=" ++ RangeString = RawRange,
-        Ranges = string:tokens(RangeString, ","),
+        RangeTokens = [string:strip(R) || R <- string:tokens(RangeString, ",")],
+        Ranges = [R || R <- RangeTokens, string:len(R) > 0],
         lists:map(fun ("-" ++ V)  ->
                           {none, list_to_integer(V)};
                       (R) ->
@@ -170,6 +188,8 @@ range_skip_length(Spec, Size) ->
             invalid_range;
         {Start, End} when 0 =< Start, Start =< End, End < Size ->
             {Start, End - Start + 1};
+        {Start, End} when 0 =< Start, Start =< End, End >= Size ->
+            {Start, Size - Start};
         {_OutOfRange, _End} ->
             invalid_range
     end.
@@ -202,6 +222,19 @@ range_test() ->
        [{20, none}, {50, 100}, {none, 200}],
        parse_range_request("bytes=20-,50-100,-200")),
 
+    %% valid, multiple range with whitespace
+    ?assertEqual(
+       [{20, 30}, {50, 100}, {110, 200}],
+       parse_range_request("bytes=20-30, 50-100 , 110-200")),
+
+    %% valid, multiple range with extra commas
+    ?assertEqual(
+       [{20, 30}, {50, 100}, {110, 200}],
+       parse_range_request("bytes=20-30,,50-100,110-200")),
+    ?assertEqual(
+       [{20, 30}, {50, 100}, {110, 200}],
+       parse_range_request("bytes=20-30, ,50-100,,,110-200")),
+
     %% no ranges
     ?assertEqual([], parse_range_request("bytes=")),
     ok.
@@ -224,18 +257,22 @@ range_skip_length_test() ->
     BodySizeLess1 = BodySize - 1,
     ?assertEqual({BodySizeLess1, 1},
                  range_skip_length({BodySize - 1, none}, BodySize)),
+    ?assertEqual({BodySizeLess1, 1},
+                 range_skip_length({BodySize - 1, BodySize+5}, BodySize)),
+    ?assertEqual({BodySizeLess1, 1},
+                 range_skip_length({BodySize - 1, BodySize}, BodySize)),
 
     %% out of range, return whole thing
     ?assertEqual({0, BodySize},
                  range_skip_length({none, BodySize + 1}, BodySize)),
     ?assertEqual({0, BodySize},
                  range_skip_length({none, -1}, BodySize)),
+    ?assertEqual({0, BodySize},
+                 range_skip_length({0, BodySize + 1}, BodySize)),
 
     %% invalid ranges
     ?assertEqual(invalid_range,
                  range_skip_length({-1, 30}, BodySize)),
-    ?assertEqual(invalid_range,
-                 range_skip_length({0, BodySize + 1}, BodySize)),
     ?assertEqual(invalid_range,
                  range_skip_length({-1, BodySize + 1}, BodySize)),
     ?assertEqual(invalid_range,
