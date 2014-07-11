@@ -152,47 +152,62 @@ setup_server_key() ->
     crypto:start(),
     ["adfasdfasfs",30000].
 
+-ifdef(crypto_compatibility).
+%% the crypto:aes_cfb_128_encrypt function used for crypto compatibility
+%% with older Erlang releases requires data to be multiple of 16 bytes
+pad(Data) ->
+    case iolist_size(Data) rem 16 of
+        0 ->
+            lists:flatten(Data);
+        V ->
+            lists:flatten([Data, lists:duplicate(16-V, 0)])
+    end.
+-else.
+pad(Data) ->
+    Data.
+-endif.
+
 generate_check_session_cookie([ServerKey, TS]) ->
     Id = fun (A) -> A end,
     TSFuture = TS + 1000,
     TSPast = TS - 1,
     [?_assertEqual(
-        {true, [TSFuture, "alice"]},
+        {true, [TSFuture, pad("alice")]},
         check_session_cookie(
-          generate_session_data(TSFuture, "alice", Id, ServerKey),
+          generate_session_data(TSFuture, pad("alice"), Id, ServerKey),
           TS, Id, ServerKey)),
      ?_assertEqual(
-        {true, [TSFuture, "alice and"]},
+        {true, [TSFuture, pad("alice and")]},
         check_session_cookie(
-          generate_session_data(TSFuture, "alice and", Id, ServerKey),
+          generate_session_data(TSFuture, pad("alice and"), Id, ServerKey),
           TS, Id, ServerKey)),
      ?_assertEqual(
-        {true, [TSFuture, "alice and"]},
+        {true, [TSFuture, pad("alice and")]},
         check_session_cookie(
-          generate_session_data(TSFuture, "alice and", Id, ServerKey),
+          generate_session_data(TSFuture, pad("alice and"), Id, ServerKey),
           TS, Id,ServerKey)),
      ?_assertEqual(
-        {true, [TSFuture, "alice and bob"]},
+        {true, [TSFuture, pad("alice and bob")]},
         check_session_cookie(
-          generate_session_data(TSFuture, "alice and bob",
+          generate_session_data(TSFuture, pad("alice and bob"),
                                 Id, ServerKey),
           TS, Id, ServerKey)),
      ?_assertEqual(
-        {true, [TSFuture, "alice jlkjfkjsdfg sdkfjgldsjgl"]},
+        {true, [TSFuture, pad("alice jlkjfkjsdfg sdkfjgldsjgl")]},
         check_session_cookie(
-          generate_session_data(TSFuture, "alice jlkjfkjsdfg sdkfjgldsjgl",
+          generate_session_data(TSFuture, pad("alice jlkjfkjsdfg sdkfjgldsjgl"),
                                 Id, ServerKey),
           TS, Id, ServerKey)),
      ?_assertEqual(
-        {true, [TSFuture, "alice .'¡'ç+-$%/(&\""]},
+        {true, [TSFuture, pad("alice .'¡'ç+-$%/(&\"")]},
         check_session_cookie(
-          generate_session_data(TSFuture, "alice .'¡'ç+-$%/(&\""
+          generate_session_data(TSFuture, pad("alice .'¡'ç+-$%/(&\"")
                                 ,Id, ServerKey),
           TS, Id, ServerKey)),
      ?_assertEqual(
-        {true,[TSFuture,"alice456689875"]},
+        {true,[TSFuture,pad("alice456689875")]},
         check_session_cookie(
-          generate_session_data(TSFuture, ["alice","456689875"],
+          generate_session_data(TSFuture, pad(["alice","456689875"]),
                                 Id, ServerKey),
           TS, Id, ServerKey)),
      ?_assertError(
@@ -202,9 +217,9 @@ generate_check_session_cookie([ServerKey, TS]) ->
                                 Id, ServerKey),
           TS, Id,ServerKey)),
      ?_assertEqual(
-        {false, [TSPast, "bob"]},
+        {false, [TSPast, pad("bob")]},
         check_session_cookie(
-          generate_session_data(TSPast, "bob", Id,ServerKey),
+          generate_session_data(TSPast, pad("bob"), Id,ServerKey),
           TS, Id, ServerKey))
     ].
 -endif.

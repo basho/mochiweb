@@ -108,10 +108,18 @@ make_handshake(Req) ->
           error
     end.
 
+-ifdef(crypto_compatibility).
+b64_encode(Bin) ->
+    base64:encode(crypto:sha(Bin)).
+-else.
+b64_encode(Bin) ->
+    base64:encode(crypto:hash(sha, Bin)).
+-endif.
+
 hybi_handshake(SecKey) ->
     BinKey = list_to_binary(SecKey),
     Bin = <<BinKey/binary, "258EAFA5-E914-47DA-95CA-C5AB0DC85B11">>,
-    Challenge = base64:encode(crypto:hash(sha, Bin)),
+    Challenge = b64_encode(Bin),
     Response = {101, [{"Connection", "Upgrade"},
                       {"Upgrade", "websocket"},
                       {"Sec-Websocket-Accept", Challenge}], ""},
