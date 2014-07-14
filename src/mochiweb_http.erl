@@ -5,11 +5,15 @@
 
 -module(mochiweb_http).
 -author('bob@mochimedia.com').
+
+-include("internal.hrl").
+
 -export([start/1, start_link/1, stop/0, stop/1]).
 -export([loop/2]).
 -export([after_response/2, reentry/1]).
 -export([parse_range_request/1, range_skip_length/2]).
 
+% -define(REQUEST_RECV_TIMEOUT, 300000).   %% timeout waiting for request line
 -define(REQUEST_RECV_TIMEOUT, 300000).   %% timeout waiting for request line
 -define(HEADERS_RECV_TIMEOUT, 30000).    %% timeout waiting for headers
 
@@ -68,7 +72,7 @@ request(Socket, Body) ->
             exit(normal);
         _Other ->
             handle_invalid_request(Socket)
-    after ?REQUEST_RECV_TIMEOUT ->
+    after ?param(http_req_recv_timeout_ms,?REQUEST_RECV_TIMEOUT) ->
         mochiweb_socket:close(Socket),
         exit(normal)
     end.

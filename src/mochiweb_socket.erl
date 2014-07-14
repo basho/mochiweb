@@ -4,10 +4,13 @@
 
 -module(mochiweb_socket).
 
+-include("internal.hrl").
+
 -export([listen/4, accept/1, recv/3, send/2, close/1, port/1, peername/1,
          setopts/2, type/1]).
 
 -define(ACCEPT_TIMEOUT, 2000).
+-define(SSL_ACCEPT_TIMEOUT, 30000).
 
 listen(Ssl, Port, Opts, SslOpts) ->
     case Ssl of
@@ -27,7 +30,7 @@ accept({ssl, ListenSocket}) ->
     % reason for the try...catch block. Should be fixed in OTP R14.
     try ssl:transport_accept(ListenSocket) of
         {ok, Socket} ->
-            case ssl:ssl_accept(Socket) of
+            case ssl:ssl_accept(Socket, ?param(ssl_accept_timeout_ms, ?SSL_ACCEPT_TIMEOUT)) of
                 ok ->
                     {ok, {ssl, Socket}};
                 {error, _} = Err ->
