@@ -252,6 +252,7 @@ range_skip_length_test() ->
     ?assertEqual({BodySize, 0}, range_skip_length({none, 0}, BodySize)),
     ?assertEqual({0, BodySize}, range_skip_length({none, BodySize}, BodySize)),
     ?assertEqual({0, BodySize}, range_skip_length({0, none}, BodySize)),
+    ?assertEqual({0, BodySize}, range_skip_length({0, BodySize + 1}, BodySize)),
     BodySizeLess1 = BodySize - 1,
     ?assertEqual({BodySizeLess1, 1},
                  range_skip_length({BodySize - 1, none}, BodySize)),
@@ -271,8 +272,6 @@ range_skip_length_test() ->
     %% invalid ranges
     ?assertEqual(invalid_range,
                  range_skip_length({-1, 30}, BodySize)),
-    ?assertEqual({0, BodySize},
-                 range_skip_length({0, BodySize + 1}, BodySize)),
     ?assertEqual(invalid_range,
                  range_skip_length({-1, BodySize + 1}, BodySize)),
     ?assertEqual(invalid_range,
@@ -281,6 +280,8 @@ range_skip_length_test() ->
                  range_skip_length({-1, none}, BodySize)),
     ?assertEqual(invalid_range,
                  range_skip_length({BodySize, none}, BodySize)),
+    ?assertEqual(invalid_range,
+                 range_skip_length({BodySize + 1, BodySize + 5}, BodySize)),
     ok.
 
 -endif.
