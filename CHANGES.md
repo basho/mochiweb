@@ -1,3 +1,73 @@
+Version 2.12.2 released 2015-02-21
+
+* Close connections quietly when setopts fails with a closed socket.
+  https://github.com/mochi/mochiweb/pull/152
+
+Version 2.12.1 released 2015-02-01
+
+* Fix active_socket accounting
+  https://github.com/mochi/mochiweb/issues/149
+* Added full MIT license preludes to each source file to make it
+  easier for mochiweb's code to be used piecemeal
+  https://github.com/mochi/mochiweb/pull/148
+
+Version 2.12.0 released 2015-01-16
+
+* Send "Connection: close" header when the server is going to close
+  a Keep-Alive connection, usually due to unread data from the
+  client
+  https://github.com/mochi/mochiweb/issues/146
+
+Version 2.11.2 released 2015-01-16
+
+* Fix regression introduced in #147
+  https://github.com/mochi/mochiweb/pull/147
+
+Version 2.11.1 released 2015-01-16
+
+* Accept range end position which exceededs the resource size
+  https://github.com/mochi/mochiweb/pull/147
+
+Version 2.11.0 released 2015-01-12
+
+* Perform SSL handshake after releasing acceptor back into the pool,
+  and slow accept rate when file descriptors are not available,
+  to mitigate a potential DoS attack. Adds new mochiweb_socket
+  functions transport_accept/1 and finish_accept/1 which should be
+  used in preference to the now deprecated accept/1 function.
+  https://github.com/mochi/mochiweb/issues/138
+
+Version 2.10.1 released 2015-01-11
+
+* Fixes issue with SSL and mochiweb_websocket. Note that
+  mochiweb_websocket is still experimental and the API
+  is subject to change in future versions.
+  https://github.com/mochi/mochiweb/pull/144
+
+Version 2.10.0 released 2014-12-17
+
+* Added new `recbuf` option to mochiweb_http to allow the receive
+  buffer to be configured.
+  https://github.com/mochi/mochiweb/pull/134
+
+Version 2.9.2 released 2014-10-16
+
+* Add timeouts to SSL connect to prevent DoS by opening a connection
+  and not doing anything.
+  https://github.com/mochi/mochiweb/pull/140
+* Prevent using ECDH cipher in R16B because it is broken
+  https://github.com/mochi/mochiweb/pull/140
+* For default SSL connections, remove usage of sslv3 and not-so-secure
+  ciphers.
+  https://github.com/mochi/mochiweb/pull/140
+
+Version 2.9.1 released 2014-09-29
+
+* Fix Makefile rule for building docs
+  https://github.com/mochi/mochiweb/issues/135
+* Minimize gen_tcp:send calls to optimize performance.
+  https://github.com/mochi/mochiweb/pull/137
+
 Version 2.9.0 released 2014-06-24
 
 * Increased timeout in test suite for FreeBSD
