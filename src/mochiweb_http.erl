@@ -127,8 +127,8 @@ request(Socket, Body, Prev) ->
         Other ->
             error_logger:warning_msg("Got unexpected (leftover) message: ~w (to pid=~w)~n",
                                      [Other, self()]),
-            %% Don't we want to close the socket here and exit (or crash?)
-            request(Socket, Body, Prev)
+            mochiweb_socket:close(Socket),
+            exit(normal)
     after ?REQUEST_RECV_TIMEOUT ->
         mochiweb_socket:close(Socket),
         exit(normal)
@@ -180,8 +180,8 @@ collect_headers(Socket, Request, Body, Collected, Trunc, HeaderCount) ->
         Other ->
             error_logger:warning_msg("Got unexpected (leftover) message: ~w (to pid=~w)~n",
                                      [Other, self()]),
-            %% Don't we want to close the socket here and exit (or crash?)
-            collect_headers(Socket, Request, Body, Collected, Trunc, HeaderCount)
+            mochiweb_socket:close(Socket),
+            exit(normal)
     after ?HEADERS_RECV_TIMEOUT ->
         mochiweb_socket:close(Socket),
         exit(normal)
