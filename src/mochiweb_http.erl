@@ -121,13 +121,11 @@ request(Socket, Body, Prev) ->
         {ssl_closed, _} ->
             mochiweb_socket:close(Socket),
             exit(normal);
-        {ProtocolErr, _Socket, _Reason} when ProtocolErr =:= tcp_error orelse ProtocolErr =:= ssl_error ->
-            mochiweb_socket:close(Socket),
-            exit(normal);
+        {ProtocolErr, _Socket, Reason} when ProtocolErr =:= tcp_error orelse ProtocolErr =:= ssl_error ->
+            close_on_error(Socket, Reason);
         Other ->
             error_logger:warning_msg("Got unexpected (leftover) message: ~w (to pid=~w)~n",
                                      [Other, self()]),
-            %% Don't we want to close the socket here and exit (or crash?)
             request(Socket, Body, Prev)
     after ?REQUEST_RECV_TIMEOUT ->
         mochiweb_socket:close(Socket),
@@ -174,13 +172,11 @@ collect_headers(Socket, Request, Body, Collected, Trunc, HeaderCount) ->
         {ssl_closed, _} ->
             mochiweb_socket:close(Socket),
             exit(normal);
-        {ProtocolErr, _Socket, _Reason} when ProtocolErr =:= tcp_error orelse ProtocolErr =:= ssl_error ->
-            mochiweb_socket:close(Socket),
-            exit(normal);
+        {ProtocolErr, _Socket, Reason} when ProtocolErr =:= tcp_error orelse ProtocolErr =:= ssl_error ->
+            close_on_error(Socket, Reason);
         Other ->
             error_logger:warning_msg("Got unexpected (leftover) message: ~w (to pid=~w)~n",
                                      [Other, self()]),
-            %% Don't we want to close the socket here and exit (or crash?)
             collect_headers(Socket, Request, Body, Collected, Trunc, HeaderCount)
     after ?HEADERS_RECV_TIMEOUT ->
         mochiweb_socket:close(Socket),
@@ -213,6 +209,10 @@ call_body(Body, Req) ->
 handle_invalid_request(Socket, Request, RevHeaders) ->
     Req = new_request(Socket, Request, RevHeaders),
     Req:respond({400, [], []}),
+    mochiweb_socket:close(Socket),
+    exit(normal).
+
+close_on_error(Socket, _Reason) ->
     mochiweb_socket:close(Socket),
     exit(normal).
 
