@@ -72,8 +72,17 @@ request(Socket, Body) ->
         {ssl_closed, _} ->
             mochiweb_socket:close(Socket),
             exit(normal);
+        Msg = {ProtocolErr, _Socket, emsgsize} when
+              ProtocolErr =:= tcp_error ; ProtocolErr =:= ssl_error ->
+            handle_invalid_msg_request(Msg, Socket);
+        {ProtocolErr, _Socket, _Reason} when
+              ProtocolErr =:= tcp_error ; ProtocolErr =:= ssl_error ->
+            mochiweb_socket:close(Socket),
+            exit(normal);
         Other ->
-            handle_invalid_msg_request(Other, Socket)
+            error_logger:warning_msg("Got unexpected (leftover) message: ~w (to pid=~w)~n",
+                                     [Other, self()]),
+            request(Socket, Body)
     after ?REQUEST_RECV_TIMEOUT ->
         mochiweb_socket:close(Socket),
         exit(normal)
@@ -101,8 +110,19 @@ headers(Socket, Request, Headers, Body, HeaderCount) ->
         {tcp_closed, _} ->
             mochiweb_socket:close(Socket),
             exit(normal);
+        Msg = {ProtocolErr, _Socket, emsgsize} when
+              ProtocolErr =:= tcp_error ; ProtocolErr =:= ssl_error ->
+            handle_invalid_msg_request(Msg, Socket);
+        Msg = {ProtocolErr, _Socket, _Reason} when
+              ProtocolErr =:= tcp_error ; ProtocolErr =:= ssl_error ->
+            error_logger:warning_msg("Got unexpected TCP error message: ~w (to pid=~w)~n",
+                                     [Msg, self()]),
+            mochiweb_socket:close(Socket),
+            exit(normal);
         Other ->
-            handle_invalid_msg_request(Other, Socket, Request, Headers)
+            error_logger:warning_msg("Got unexpected (leftover) message: ~w (to pid=~w)~n",
+                                     [Other, self()]),
+            headers(Socket, Request, Headers, Body, HeaderCount)
     after ?HEADERS_RECV_TIMEOUT ->
         mochiweb_socket:close(Socket),
         exit(normal)
