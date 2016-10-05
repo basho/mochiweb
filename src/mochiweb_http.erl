@@ -90,6 +90,13 @@ request(Socket, Opts, Body) ->
         {ssl_closed, _} ->
             mochiweb_socket:close(Socket),
             exit(normal);
+        Msg = {ProtocolErr, _Socket, emsgsize} when
+              ProtocolErr =:= tcp_error ; ProtocolErr =:= ssl_error ->
+            handle_invalid_msg_request(Msg, Socket);
+        {ProtocolErr, _Socket, _Reason} when
+              ProtocolErr =:= tcp_error ; ProtocolErr =:= ssl_error ->
+            mochiweb_socket:close(Socket),
+            exit(normal);
         Other ->
             handle_invalid_msg_request(Other, Socket, Opts)
     after ?REQUEST_RECV_TIMEOUT ->
@@ -117,6 +124,15 @@ headers(Socket, Opts, Request, Headers, Body, HeaderCount) ->
             headers(Socket, Opts, Request, [{Name, Value} | Headers], Body,
                     1 + HeaderCount);
         {tcp_closed, _} ->
+            mochiweb_socket:close(Socket),
+            exit(normal);
+        Msg = {ProtocolErr, _Socket, emsgsize} when
+              ProtocolErr =:= tcp_error ; ProtocolErr =:= ssl_error ->
+            handle_invalid_msg_request(Msg, Socket);
+        Msg = {ProtocolErr, _Socket, _Reason} when
+              ProtocolErr =:= tcp_error ; ProtocolErr =:= ssl_error ->
+            error_logger:warning_msg("Got unexpected TCP error message: ~w (to pid=~w)~n",
+                                     [Msg, self()]),
             mochiweb_socket:close(Socket),
             exit(normal);
         Other ->
