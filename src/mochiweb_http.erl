@@ -1,12 +1,30 @@
 %% @author Bob Ippolito <bob@mochimedia.com>
 %% @copyright 2007 Mochi Media, Inc.
+%%
+%% Permission is hereby granted, free of charge, to any person obtaining a
+%% copy of this software and associated documentation files (the "Software"),
+%% to deal in the Software without restriction, including without limitation
+%% the rights to use, copy, modify, merge, publish, distribute, sublicense,
+%% and/or sell copies of the Software, and to permit persons to whom the
+%% Software is furnished to do so, subject to the following conditions:
+%%
+%% The above copyright notice and this permission notice shall be included in
+%% all copies or substantial portions of the Software.
+%%
+%% THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+%% IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+%% FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
+%% THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+%% LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+%% FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+%% DEALINGS IN THE SOFTWARE.
 
 %% @doc HTTP server.
 
 -module(mochiweb_http).
 -author('bob@mochimedia.com').
 -export([start/1, start_link/1, stop/0, stop/1]).
--export([loop/2]).
+-export([loop/3]).
 -export([after_response/2, reentry/1]).
 -export([parse_range_request/1, range_skip_length/2]).
 
@@ -40,7 +58,7 @@ stop(Name) ->
 %%     Option = {name, atom()} | {ip, string() | tuple()} | {backlog, integer()}
 %%              | {nodelay, boolean()} | {acceptor_pool_size, integer()}
 %%              | {ssl, boolean()} | {profile_fun, undefined | (Props) -> ok}
-%%              | {link, false}
+%%              | {link, false} | {recbuf, undefined | non_negative_integer()}
 %% @doc Start a mochiweb server.
 %%      profile_fun is used to profile accept timing.
 %%      After each accept, if defined, profile_fun is called with a proplist of a subset of the mochiweb_socket_server state and timing information.
@@ -52,20 +70,20 @@ start(Options) ->
 start_link(Options) ->
     mochiweb_socket_server:start_link(parse_options(Options)).
 
-loop(Socket, Body) ->
-    ok = mochiweb_socket:setopts(Socket, [{packet, http}]),
-    request(Socket, Body).
+loop(Socket, Opts, Body) ->
+    ok = mochiweb_socket:exit_if_closed(mochiweb_socket:setopts(Socket, [{packet, http}])),
+    request(Socket, Opts, Body).
 
-request(Socket, Body) ->
-    ok = mochiweb_socket:setopts(Socket, [{active, once}]),
+request(Socket, Opts, Body) ->
+    ok = mochiweb_socket:exit_if_closed(mochiweb_socket:setopts(Socket, [{active, once}])),
     receive
         {Protocol, _, {http_request, Method, Path, Version}} when Protocol == http orelse Protocol == ssl ->
-            ok = mochiweb_socket:setopts(Socket, [{packet, httph}]),
-            headers(Socket, {Method, Path, Version}, [], Body, 0);
+            ok = mochiweb_socket:exit_if_closed(mochiweb_socket:setopts(Socket, [{packet, httph}])),
+            headers(Socket, Opts, {Method, Path, Version}, [], Body, 0);
         {Protocol, _, {http_error, "\r\n"}} when Protocol == http orelse Protocol == ssl ->
-            request(Socket, Body);
+            request(Socket, Opts, Body);
         {Protocol, _, {http_error, "\n"}} when Protocol == http orelse Protocol == ssl ->
-            request(Socket, Body);
+            request(Socket, Opts, Body);
         {tcp_closed, _} ->
             mochiweb_socket:close(Socket),
             exit(normal);
@@ -80,9 +98,7 @@ request(Socket, Body) ->
             mochiweb_socket:close(Socket),
             exit(normal);
         Other ->
-            error_logger:warning_msg("Got unexpected (leftover) message: ~w (to pid=~w)~n",
-                                     [Other, self()]),
-            request(Socket, Body)
+            handle_invalid_msg_request(Other, Socket, Opts)
     after ?REQUEST_RECV_TIMEOUT ->
         mochiweb_socket:close(Socket),
         exit(normal)
@@ -93,19 +109,19 @@ reentry(Body) ->
             ?MODULE:after_response(Body, Req)
     end.
 
-headers(Socket, Request, Headers, _Body, ?MAX_HEADERS) ->
+headers(Socket, Opts, Request, Headers, _Body, ?MAX_HEADERS) ->
     %% Too many headers sent, bad request.
-    ok = mochiweb_socket:setopts(Socket, [{packet, raw}]),
-    handle_invalid_request(Socket, Request, Headers);
-headers(Socket, Request, Headers, Body, HeaderCount) ->
-    ok = mochiweb_socket:setopts(Socket, [{active, once}]),
+    ok = mochiweb_socket:exit_if_closed(mochiweb_socket:setopts(Socket, [{packet, raw}])),
+    handle_invalid_request(Socket, Opts, Request, Headers);
+headers(Socket, Opts, Request, Headers, Body, HeaderCount) ->
+    ok = mochiweb_socket:exit_if_closed(mochiweb_socket:setopts(Socket, [{active, once}])),
     receive
         {Protocol, _, http_eoh} when Protocol == http orelse Protocol == ssl ->
-            Req = new_request(Socket, Request, Headers),
+            Req = new_request(Socket, Opts, Request, Headers),
             call_body(Body, Req),
             ?MODULE:after_response(Body, Req);
         {Protocol, _, {http_header, _, Name, _, Value}} when Protocol == http orelse Protocol == ssl ->
-            headers(Socket, Request, [{Name, Value} | Headers], Body,
+            headers(Socket, Opts, Request, [{Name, Value} | Headers], Body,
                     1 + HeaderCount);
         {tcp_closed, _} ->
             mochiweb_socket:close(Socket),
@@ -120,9 +136,7 @@ headers(Socket, Request, Headers, Body, HeaderCount) ->
             mochiweb_socket:close(Socket),
             exit(normal);
         Other ->
-            error_logger:warning_msg("Got unexpected (leftover) message: ~w (to pid=~w)~n",
-                                     [Other, self()]),
-            headers(Socket, Request, Headers, Body, HeaderCount)
+            handle_invalid_msg_request(Other, Socket, Opts, Request, Headers)
     after ?HEADERS_RECV_TIMEOUT ->
         mochiweb_socket:close(Socket),
         exit(normal)
@@ -135,31 +149,31 @@ call_body({M, F}, Req) ->
 call_body(Body, Req) ->
     Body(Req).
 
--spec handle_invalid_msg_request(term(), term()) -> no_return().
-handle_invalid_msg_request(Msg, Socket) ->
-    handle_invalid_msg_request(Msg, Socket, {'GET', {abs_path, "/"}, {0,9}}, []).
+-spec handle_invalid_msg_request(term(), term(), term()) -> no_return().
+handle_invalid_msg_request(Msg, Socket, Opts) ->
+    handle_invalid_msg_request(Msg, Socket, Opts, {'GET', {abs_path, "/"}, {0,9}}, []).
 
--spec handle_invalid_msg_request(term(), term(), term(), term()) -> no_return().
-handle_invalid_msg_request(Msg, Socket, Request, RevHeaders) ->
+-spec handle_invalid_msg_request(term(), term(), term(), term(), term()) -> no_return().
+handle_invalid_msg_request(Msg, Socket, Opts, Request, RevHeaders) ->
     case {Msg, r15b_workaround()} of
         {{tcp_error,_,emsgsize}, true} ->
             %% R15B02 returns this then closes the socket, so close and exit
             mochiweb_socket:close(Socket),
             exit(normal);
         _ ->
-            handle_invalid_request(Socket, Request, RevHeaders)
+            handle_invalid_request(Socket, Opts, Request, RevHeaders)
     end.
 
--spec handle_invalid_request(term(), term(), term()) -> no_return().
-handle_invalid_request(Socket, Request, RevHeaders) ->
-    Req = new_request(Socket, Request, RevHeaders),
+-spec handle_invalid_request(term(), term(), term(), term()) -> no_return().
+handle_invalid_request(Socket, Opts, Request, RevHeaders) ->
+    Req = new_request(Socket, Opts, Request, RevHeaders),
     Req:respond({400, [], []}),
     mochiweb_socket:close(Socket),
     exit(normal).
 
-new_request(Socket, Request, RevHeaders) ->
-    ok = mochiweb_socket:setopts(Socket, [{packet, raw}]),
-    mochiweb:new_request({Socket, Request, lists:reverse(RevHeaders)}).
+new_request(Socket, Opts, Request, RevHeaders) ->
+    ok = mochiweb_socket:exit_if_closed(mochiweb_socket:setopts(Socket, [{packet, raw}])),
+    mochiweb:new_request({Socket, Opts, Request, lists:reverse(RevHeaders)}).
 
 after_response(Body, Req) ->
     Socket = Req:get(socket),
@@ -170,7 +184,7 @@ after_response(Body, Req) ->
         false ->
             Req:cleanup(),
             erlang:garbage_collect(),
-            ?MODULE:loop(Socket, Body)
+            ?MODULE:loop(Socket, mochiweb_request:get(opts, Req), Body)
     end.
 
 parse_range_request(RawRange) when is_list(RawRange) ->
@@ -208,7 +222,7 @@ range_skip_length(Spec, Size) ->
             {Start, End - Start + 1};
         {Start, End} when 0 =< Start, Start < Size, Start =< End ->
             {Start, Size - Start};
-        {_OutOfRange, _End} ->
+        {_InvalidStart, _InvalidEnd} ->
             invalid_range
     end.
 

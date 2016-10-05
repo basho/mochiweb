@@ -1,28 +1,9 @@
 -module(mochiweb_tests).
 -include_lib("eunit/include/eunit.hrl").
-
--record(treq, {path, body= <<>>, xreply= <<>>}).
-
-ssl_cert_opts() ->
-    EbinDir = filename:dirname(code:which(?MODULE)),
-    CertDir = filename:join([EbinDir, "..", "support", "test-materials"]),
-    CertFile = filename:join(CertDir, "test_ssl_cert.pem"),
-    KeyFile = filename:join(CertDir, "test_ssl_key.pem"),
-    [{certfile, CertFile}, {keyfile, KeyFile}].
+-include("mochiweb_test_util.hrl").
 
 with_server(Transport, ServerFun, ClientFun) ->
-    ServerOpts0 = [{ip, "127.0.0.1"}, {port, 0}, {loop, ServerFun}],
-    ServerOpts = case Transport of
-        plain ->
-            ServerOpts0;
-        ssl ->
-            ServerOpts0 ++ [{ssl, true}, {ssl_opts, ssl_cert_opts()}]
-    end,
-    {ok, Server} = mochiweb_http:start_link(ServerOpts),
-    Port = mochiweb_socket_server:get(Server, port),
-    Res = (catch ClientFun(Transport, Port)),
-    mochiweb_http:stop(Server),
-    Res.
+    mochiweb_test_util:with_server(Transport, ServerFun, ClientFun).
 
 request_test() ->
     R = mochiweb_request:new(z, z, "/foo/bar/baz%20wibble+quux?qs=2", z, []),
@@ -148,6 +129,7 @@ do_GET(PathPrefix, Transport, Times) ->
     ClientFun = new_client_fun('GET', TestReqs),
     ok = with_server(Transport, ServerFun, ClientFun),
     ok.
+
 do_POST(Transport, Size, Times) ->
     ServerFun = fun (Req) ->
                         Body = Req:recv_body(),
@@ -165,86 +147,57 @@ do_POST(Transport, Size, Times) ->
 
 new_client_fun(Method, TestReqs) ->
     fun (Transport, Port) ->
-            client_request(Transport, Port, Method, TestReqs)
+            mochiweb_test_util:client_request(Transport, Port, Method, TestReqs)
     end.
 
-client_request(Transport, Port, Method, TestReqs) ->
-    Opts = [binary, {active, false}, {packet, http}],
-    SockFun = case Transport of
-        plain ->
-            {ok, Socket} = gen_tcp:connect("127.0.0.1", Port, Opts),
-            fun (recv) ->
-                    gen_tcp:recv(Socket, 0);
-                ({recv, Length}) ->
-                    gen_tcp:recv(Socket, Length);
-                ({send, Data}) ->
-                    gen_tcp:send(Socket, Data);
-                ({setopts, L}) ->
-                    inet:setopts(Socket, L)
-            end;
-        ssl ->
-            {ok, Socket} = ssl:connect("127.0.0.1", Port, [{ssl_imp, new} | Opts]),
-            fun (recv) ->
-                    ssl:recv(Socket, 0);
-                ({recv, Length}) ->
-                    ssl:recv(Socket, Length);
-                ({send, Data}) ->
-                    ssl:send(Socket, Data);
-                ({setopts, L}) ->
-                    ssl:setopts(Socket, L)
-            end
-    end,
-    client_request(SockFun, Method, TestReqs).
+close_on_unread_data_test() ->
+    ok = with_server(
+           plain,
+           fun mochiweb_request:not_found/1,
+           fun close_on_unread_data_client/2).
 
-client_request(SockFun, _Method, []) ->
-    {the_end, {error, closed}} = {the_end, SockFun(recv)},
-    ok;
-client_request(SockFun, Method,
-               [#treq{path=Path, body=Body, xreply=ExReply} | Rest]) ->
-    Request = [atom_to_list(Method), " ", Path, " HTTP/1.1\r\n",
-               client_headers(Body, Rest =:= []),
-               "\r\n",
-               Body],
-    ok = SockFun({send, Request}),
-    case Method of
-        'GET' ->
-            {ok, {http_response, {1,1}, 200, "OK"}} = SockFun(recv);
-        'POST' ->
-            {ok, {http_response, {1,1}, 201, "Created"}} = SockFun(recv);
-        'CONNECT' ->
-            {ok, {http_response, {1,1}, 200, "OK"}} = SockFun(recv)
-    end,
-    ok = SockFun({setopts, [{packet, httph}]}),
-    {ok, {http_header, _, 'Server', _, "MochiWeb" ++ _}} = SockFun(recv),
-    {ok, {http_header, _, 'Date', _, _}} = SockFun(recv),
-    {ok, {http_header, _, 'Content-Type', _, _}} = SockFun(recv),
-    {ok, {http_header, _, 'Content-Length', _, ConLenStr}} = SockFun(recv),
-    ContentLength = list_to_integer(ConLenStr),
-    {ok, http_eoh} = SockFun(recv),
-    ok = SockFun({setopts, [{packet, raw}]}),
-    {payload, ExReply} = {payload, drain_reply(SockFun, ContentLength, <<>>)},
+close_on_unread_data_client(Transport, Port) ->
+    SockFun = mochiweb_test_util:sock_fun(Transport, Port),
+    %% A normal GET request should not trigger this behavior
+    Request0 = string:join(
+                 ["GET / HTTP/1.1",
+                  "Host: localhost",
+                  "",
+                  ""],
+                 "\r\n"),
     ok = SockFun({setopts, [{packet, http}]}),
-    client_request(SockFun, Method, Rest).
-
-client_headers(Body, IsLastRequest) ->
-    ["Host: localhost\r\n",
-     case Body of
-        <<>> ->
-            "";
-        _ ->
-            ["Content-Type: application/octet-stream\r\n",
-             "Content-Length: ", integer_to_list(byte_size(Body)), "\r\n"]
-     end,
-     case IsLastRequest of
-         true ->
-             "Connection: close\r\n";
-         false ->
-             ""
-     end].
-
-drain_reply(_SockFun, 0, Acc) ->
-    Acc;
-drain_reply(SockFun, Length, Acc) ->
-    Sz = erlang:min(Length, 1024),
-    {ok, B} = SockFun({recv, Sz}),
-    drain_reply(SockFun, Length - Sz, <<Acc/bytes, B/bytes>>).
+    ok = SockFun({send, Request0}),
+    ?assertMatch(
+       {ok, {http_response, {1, 1}, 404, _}},
+       SockFun(recv)),
+    Headers0 = mochiweb_test_util:read_server_headers(SockFun),
+    ?assertEqual(
+       undefined,
+       mochiweb_headers:get_value("Connection", Headers0)),
+    Len0 = list_to_integer(
+             mochiweb_headers:get_value("Content-Length", Headers0)),
+    _Body0 = mochiweb_test_util:drain_reply(SockFun, Len0, <<>>),
+    %% Re-use same socket
+    Request = string:join(
+                ["POST / HTTP/1.1",
+                 "Host: localhost",
+                 "Content-Type: application/json",
+                 "Content-Length: 2",
+                 "",
+                 "{}"],
+                "\r\n"),
+    ok = SockFun({setopts, [{packet, http}]}),
+    ok = SockFun({send, Request}),
+    ?assertMatch(
+       {ok, {http_response, {1, 1}, 404, _}},
+       SockFun(recv)),
+    Headers = mochiweb_test_util:read_server_headers(SockFun),
+    %% Expect to see a Connection: close header when we know the
+    %% server will close the connection re #146
+    ?assertEqual(
+       "close",
+       mochiweb_headers:get_value("Connection", Headers)),
+    Len = list_to_integer(mochiweb_headers:get_value("Content-Length", Headers)),
+    _Body = mochiweb_test_util:drain_reply(SockFun, Len, <<>>),
+    ?assertEqual({error, closed}, SockFun(recv)),
+    ok.
