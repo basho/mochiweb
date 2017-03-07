@@ -36,7 +36,7 @@
 %% @type key() = atom() | string() | binary()
 %% @type value() = atom() | string() | binary() | integer()
 %% @type headers(). A mochiweb_headers structure.
-%% @type request() = {mochiweb_request,[_Socket,_Method,_RawPath,_Version,_Headers]}
+%% @type request() = {mochiweb_request, list()}. Where list() if of the form [_Socket, _Method, _RawPath, _Version, _Headers]
 %% @type response(). A mochiweb_response tuple module instance.
 %% @type ioheaders() = headers() | [{key(), value()}].
 
@@ -45,6 +45,9 @@
 
 % Maximum recv_body() length of 1MB
 -define(MAX_RECV_BODY, (1024*1024)).
+
+-dialyzer({nowarn_function, [ok/2]}).
+-dialyzer({nowarn_function, [range_parts/2]}).
 
 %% @spec new(Socket, Method, RawPath, Version, headers()) -> request()
 %% @doc Create a new request instance.
