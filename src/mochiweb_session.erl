@@ -122,7 +122,7 @@ gen_hmac(ExpirationTime, Data, SessionKey, Key) ->
 -else.
 -spec encrypt_data(binary(), binary()) -> binary().
 encrypt_data(Data, Key) ->
-    IV = crypto:rand_bytes(16),
+    IV = mochiweb:rand_bytes(16),
     Crypt = crypto:block_encrypt(aes_cfb128, Key, IV, Data),
     <<IV/binary, Crypt/binary>>.
 

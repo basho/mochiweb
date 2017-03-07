@@ -10,6 +10,8 @@
 -export([all_loaded/0, all_loaded/1, reload/0]).
 -export([ensure_started/1]).
 
+-export([rand_bytes/1]).
+
 reload() ->
     [c:l(Module) || Module <- all_loaded()].
 
@@ -76,3 +78,23 @@ ensure_started(App) ->
         {error, {already_started, App}} ->
             ok
     end.
+
+%% Equivalent to crypto:rand_bytes/1 or crypto:strong_rand_bytes/1, based
+%% on availability.
+-spec rand_bytes(N :: pos_integer()) -> binary().
+rand_bytes(N) ->
+    Key = {?MODULE, rand_bytes_func},
+    Func = case erlang:get(Key) of
+               undefined ->
+                   Fnc = case erlang:function_exported(crypto, rand_bytes, 1) of
+                             true ->
+                                 rand_bytes;
+                             _ ->
+                                 strong_rand_bytes
+                         end,
+                   _ = erlang:put(Key, Fnc),
+                   Fnc;
+               Val ->
+                   Val
+           end,
+    crypto:Func(N).
