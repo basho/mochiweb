@@ -5,10 +5,58 @@
 -module(mochiweb_html).
 -export([tokens/1, parse/1, parse_tokens/1, to_tokens/1, escape/1,
          escape_attr/1, to_html/1]).
--compile([export_all]).
--ifdef(TEST).
--export([destack/1, destack/2, is_singleton/1]).
--endif.
+
+-export([append_stack_child/2,
+         attrs_to_html/2,
+         destack/1,
+         destack/2,
+         doctype_to_html/2,
+         escape/2,
+         escape_attr/2,
+         find_document/2,
+         find_gt/2,
+         find_gt/3,
+         find_qgt/2,
+         is_singleton/1,
+         maybe_add_html_tag/2,
+         norm/1,
+         parse_flag/1,
+         raw_qgt/2,
+         raw_qgt/3,
+         skip_whitespace/2,
+         stack/2,
+         to_html/2,
+         to_tag/1,
+         to_tokens/2,
+         tokenize/2,
+         tokenize_attr_value/3,
+         tokenize_attributes/2,
+         tokenize_attributes/3,
+         tokenize_cdata/2,
+         tokenize_cdata/3,
+         tokenize_charref/2,
+         tokenize_charref/3,
+         tokenize_comment/2,
+         tokenize_comment/3,
+         tokenize_data/2,
+         tokenize_data/4,
+         tokenize_doctype/2,
+         tokenize_doctype/3,
+         tokenize_literal/2,
+         tokenize_literal/3,
+         tokenize_quoted_attr_value/4,
+         tokenize_quoted_or_unquoted_attr_value/2,
+         tokenize_script/2,
+         tokenize_script/3,
+         tokenize_textarea/2,
+         tokenize_textarea/3,
+         tokenize_unquoted_attr_value/3,
+         tokenize_word/3,
+         tokenize_word/4,
+         tokenize_word_or_literal/2,
+         tokens/3,
+         tree/2,
+         tree_data/3]).
 
 %% This is a macro to placate syntax highlighters..
 -define(QUOTE, $\"). %% $\"

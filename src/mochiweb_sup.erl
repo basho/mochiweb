@@ -23,7 +23,8 @@ start_link() ->
 %% @doc Add processes if necessary.
 upgrade() ->
     {ok, {_, Specs}} = init([]),
-    [supervisor:start_child(?MODULE, Spec) || Spec <- Specs],
+    lists:foreach(fun(Spec) -> supervisor:start_child(?MODULE, Spec) end,
+                  Specs),
     ok.
 
 %% @spec init([]) -> SupervisorTree
@@ -36,6 +37,6 @@ init([]) ->
 %%
 %% Tests
 %%
--include_lib("eunit/include/eunit.hrl").
 -ifdef(TEST).
+-include_lib("eunit/include/eunit.hrl").
 -endif.
