@@ -3,11 +3,11 @@
 
 -record(treq, {path, body= <<>>, xreply= <<>>}).
 
+-export([test_dir_file/1]).
+
 ssl_cert_opts() ->
-    EbinDir = filename:dirname(code:which(?MODULE)),
-    CertDir = filename:join([EbinDir, "..", "support", "test-materials"]),
-    CertFile = filename:join(CertDir, "test_ssl_cert.pem"),
-    KeyFile = filename:join(CertDir, "test_ssl_key.pem"),
+    CertFile = test_dir_file("test_ssl_cert.pem"),
+    KeyFile = test_dir_file("test_ssl_key.pem"),
     [{certfile, CertFile}, {keyfile, KeyFile}].
 
 with_server(Transport, ServerFun, ClientFun) ->
@@ -248,3 +248,17 @@ drain_reply(SockFun, Length, Acc) ->
     Sz = erlang:min(Length, 1024),
     {ok, B} = SockFun({recv, Sz}),
     drain_reply(SockFun, Length - Sz, <<Acc/bytes, B/bytes>>).
+
+
+%% Lifted and adapted from hyper, TODO consider moving this and other
+%% similar functions to a separate library app to share across all
+%% other repos
+test_dir_file(Path) ->
+    filename:join([get_app_home(?MODULE), "test", Path]).
+
+
+%% Use get_object_code, instead of code:which(...), because we may be
+%% running under cover.
+get_app_home(Module) ->
+    {_, _, BeamPath} = code:get_object_code(Module),
+    filename:dirname(filename:dirname(BeamPath)).
