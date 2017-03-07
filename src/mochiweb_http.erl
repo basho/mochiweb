@@ -17,6 +17,9 @@
 -define(DEFAULTS, [{name, ?MODULE},
                    {port, 8888}]).
 
+-dialyzer({nowarn_function, [headers/5]}).
+-dialyzer({nowarn_function, [handle_invalid_request/3]}).
+
 parse_options(Options) ->
     {loop, HttpLoop} = proplists:lookup(loop, Options),
     Loop = {?MODULE, loop, [HttpLoop]},

@@ -28,6 +28,9 @@
 -export([loop/5, upgrade_connection/2, request/5]).
 -export([send/3]).
 
+-dialyzer({nowarn_function, [scheme/1]}).
+-dialyzer({nowarn_function, [hixie_handshake/7]}).
+
 loop(Socket, Body, State, WsVersion, ReplyChannel) ->
     ok = mochiweb_socket:setopts(Socket, [{packet, 0}, {active, once}]),
     proc_lib:hibernate(?MODULE, request,
