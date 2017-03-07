@@ -17,12 +17,6 @@
 -define(DEFAULTS, [{name, ?MODULE},
                    {port, 8888}]).
 
--ifdef(gen_tcp_r15b_workaround).
-r15b_workaround() -> true.
--else.
-r15b_workaround() -> false.
--endif.
-
 parse_options(Options) ->
     {loop, HttpLoop} = proplists:lookup(loop, Options),
     Loop = {?MODULE, loop, [HttpLoop]},
@@ -140,15 +134,8 @@ handle_invalid_msg_request(Msg, Socket) ->
     handle_invalid_msg_request(Msg, Socket, {'GET', {abs_path, "/"}, {0,9}}, []).
 
 -spec handle_invalid_msg_request(term(), term(), term(), term()) -> no_return().
-handle_invalid_msg_request(Msg, Socket, Request, RevHeaders) ->
-    case {Msg, r15b_workaround()} of
-        {{tcp_error,_,emsgsize}, true} ->
-            %% R15B02 returns this then closes the socket, so close and exit
-            mochiweb_socket:close(Socket),
-            exit(normal);
-        _ ->
-            handle_invalid_request(Socket, Request, RevHeaders)
-    end.
+handle_invalid_msg_request(_Msg, Socket, Request, RevHeaders) ->
+    handle_invalid_request(Socket, Request, RevHeaders).
 
 -spec handle_invalid_request(term(), term(), term()) -> no_return().
 handle_invalid_request(Socket, Request, RevHeaders) ->
