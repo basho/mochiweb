@@ -103,7 +103,7 @@ ensure_binary(L) when is_list(L) ->
 -ifdef(crypto_compatibility).
 -spec encrypt_data(binary(), binary()) -> binary().
 encrypt_data(Data, Key) ->
-    IV = crypto:rand_bytes(16),
+    IV = mochiweb:rand_bytes(16),
     Crypt = crypto:aes_cfb_128_encrypt(Key, IV, Data),
     <<IV/binary, Crypt/binary>>.
 
