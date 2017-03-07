@@ -109,7 +109,7 @@ sign_data(PrivateKey, #hmac_signature{} = Signature) ->
 %% yer Donald is well and truly Ducked so ye may as weel test it...
 sign2(PrivateKey, Str) ->
     Sign = xmerl_ucs:to_utf8(Str),
-    binary_to_list(base64:encode(crypto:sha_mac(PrivateKey, Sign))).
+    binary_to_list(base64:encode(crypto:hmac(sha, PrivateKey, [Sign]))).
 
 canonicalise_headers([]) -> "\n";
 canonicalise_headers(List) when is_list(List) ->
