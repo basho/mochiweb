@@ -119,26 +119,6 @@ ensure_binary(B) when is_binary(B) ->
 ensure_binary(L) when is_list(L) ->
     iolist_to_binary(L).
 
--ifdef(crypto_compatibility).
--spec encrypt_data(binary(), binary()) -> binary().
-encrypt_data(Data, Key) ->
-    IV = crypto:strong_rand_bytes(16),
-    Crypt = crypto:aes_cfb_128_encrypt(Key, IV, Data),
-    <<IV/binary, Crypt/binary>>.
-
--spec decrypt_data(binary(), binary()) -> binary().
-decrypt_data(<<IV:16/binary, Crypt/binary>>, Key) ->
-    crypto:aes_cfb_128_decrypt(Key, IV, Crypt).
-
--spec gen_key(iolist(), iolist()) -> binary().
-gen_key(ExpirationTime, ServerKey)->
-    crypto:md5_mac(ServerKey, [ExpirationTime]).
-
--spec gen_hmac(iolist(), binary(), iolist(), binary()) -> binary().
-gen_hmac(ExpirationTime, Data, SessionKey, Key) ->
-    crypto:sha_mac(Key, [ExpirationTime, Data, SessionKey]).
-
--else.
 -spec encrypt_data(binary(), binary()) -> binary().
 encrypt_data(Data, Key) ->
     IV = crypto:strong_rand_bytes(16),
@@ -157,7 +137,6 @@ gen_key(ExpirationTime, ServerKey)->
 gen_hmac(ExpirationTime, Data, SessionKey, Key) ->
     crypto:hmac(sha, Key, [ExpirationTime, Data, SessionKey]).
 
--endif.
 
 -ifdef(TEST).
 -include_lib("eunit/include/eunit.hrl").
@@ -171,20 +150,10 @@ setup_server_key() ->
     crypto:start(),
     ["adfasdfasfs",30000].
 
--ifdef(crypto_compatibility).
-%% the crypto:aes_cfb_128_encrypt function used for crypto compatibility
-%% with older Erlang releases requires data to be multiple of 16 bytes
-pad(Data) ->
-    case iolist_size(Data) rem 16 of
-        0 ->
-            lists:flatten(Data);
-        V ->
-            lists:flatten([Data, lists:duplicate(16-V, 0)])
-    end.
--else.
+%% TODO: Remove this, left over from pre-R16B02 crypto.
+-compile({inline, pad/1}).
 pad(Data) ->
     Data.
--endif.
 
 generate_check_session_cookie([ServerKey, TS]) ->
     Id = fun (A) -> A end,

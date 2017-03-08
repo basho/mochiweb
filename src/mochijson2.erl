@@ -82,7 +82,9 @@
 -define(IS_WHITESPACE(C),
         (C =:= $\s orelse C =:= $\t orelse C =:= $\r orelse C =:= $\n)).
 
--ifdef(map_unavailable).
+-ifdef(NO_MAP_TYPE).
+%% Generates a compiler warning, which is far too much work to get around.
+%% The offending code *should* be optimized away.
 -define(IS_MAP(_), false).
 -else.
 -define(IS_MAP(X), is_map(X)).
@@ -155,7 +157,6 @@ parse_decoder_options([{format, Format} | Rest], State)
   when Format =:= struct orelse Format =:= eep18 orelse Format =:= proplist ->
     parse_decoder_options(Rest, State#decoder{object_hook=Format}).
 
-
 json_encode(true, _State) ->
     <<"true">>;
 json_encode(false, _State) ->
@@ -211,10 +212,12 @@ json_encode_proplist(Props, State) ->
     [$, | Acc1] = lists:foldl(F, "{", Props),
     lists:reverse([$\} | Acc1]).
 
--ifdef(map_unavailable).
+-ifdef(NO_MAP_TYPE).
+%% The ?IS_MAP(Bad) definition guarantees that this branch is dead.
+%% Inlining it *should* cause it all to be optimized away.
+-compile({inline, json_encode_map/2}).
 json_encode_map(Bad, _State) ->
-  %% IS_MAP definition guarantees that this branch is dead
-  exit({json_encode, {bad_term, Bad}}).
+    exit({json_encode, {bad_term, Bad}}).
 -else.
 json_encode_map(Map, _State) when map_size(Map) =:= 0 ->
     <<"{}">>;
@@ -965,7 +968,7 @@ utf8_non_character_test_() ->
     [{"roundtrip escaped", ?_assertEqual(S, decode(encode(S)))},
      {"roundtrip utf8", ?_assertEqual(S, decode((encoder([{utf8, true}]))(S)))}].
 
--ifndef(map_unavailable).
+-ifndef(NO_MAP_TYPE).
 
 encode_map_test() ->
     M = <<"{\"a\":1,\"b\":{\"c\":2}}">>,
@@ -974,6 +977,6 @@ encode_map_test() ->
 encode_empty_map_test() ->
     ?assertEqual(<<"{}">>, encode(#{})).
 
--endif.
+-endif. % NO_MAP_TYPE
 
--endif.
+-endif. % TEST

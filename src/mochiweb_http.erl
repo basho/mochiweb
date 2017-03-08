@@ -35,12 +35,6 @@
 -define(DEFAULTS, [{name, ?MODULE},
                    {port, 8888}]).
 
--ifdef(gen_tcp_r15b_workaround).
-r15b_workaround() -> true.
--else.
-r15b_workaround() -> false.
--endif.
-
 parse_options(Options) ->
     {loop, HttpLoop} = proplists:lookup(loop, Options),
     Loop = {?MODULE, loop, [HttpLoop]},
@@ -102,7 +96,7 @@ request(Socket, Opts, Body) ->
             exit(normal);
         Msg = {ProtocolErr, _Socket, emsgsize} when
               ProtocolErr =:= tcp_error ; ProtocolErr =:= ssl_error ->
-            handle_invalid_msg_request(Msg, Socket);
+            handle_invalid_msg_request(Msg, Socket, Opts);
         {ProtocolErr, _Socket, _Reason} when
               ProtocolErr =:= tcp_error ; ProtocolErr =:= ssl_error ->
             mochiweb_socket:close(Socket),
@@ -138,7 +132,7 @@ headers(Socket, Opts, Request, Headers, Body, HeaderCount) ->
             exit(normal);
         Msg = {ProtocolErr, _Socket, emsgsize} when
               ProtocolErr =:= tcp_error ; ProtocolErr =:= ssl_error ->
-            handle_invalid_msg_request(Msg, Socket);
+            handle_invalid_msg_request(Msg, Socket, Opts);
         Msg = {ProtocolErr, _Socket, _Reason} when
               ProtocolErr =:= tcp_error ; ProtocolErr =:= ssl_error ->
             error_logger:warning_msg("Got unexpected TCP error message: ~w (to pid=~w)~n",
@@ -164,15 +158,8 @@ handle_invalid_msg_request(Msg, Socket, Opts) ->
     handle_invalid_msg_request(Msg, Socket, Opts, {'GET', {abs_path, "/"}, {0,9}}, []).
 
 -spec handle_invalid_msg_request(term(), term(), term(), term(), term()) -> no_return().
-handle_invalid_msg_request(Msg, Socket, Opts, Request, RevHeaders) ->
-    case {Msg, r15b_workaround()} of
-        {{tcp_error,_,emsgsize}, true} ->
-            %% R15B02 returns this then closes the socket, so close and exit
-            mochiweb_socket:close(Socket),
-            exit(normal);
-        _ ->
-            handle_invalid_request(Socket, Opts, Request, RevHeaders)
-    end.
+handle_invalid_msg_request(_Msg, Socket, Opts, Request, RevHeaders) ->
+    handle_invalid_request(Socket, Opts, Request, RevHeaders).
 
 -spec handle_invalid_request(term(), term(), term(), term()) -> no_return().
 handle_invalid_request(Socket, Opts, Request, RevHeaders) ->

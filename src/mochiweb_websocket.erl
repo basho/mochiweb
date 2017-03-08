@@ -111,13 +111,8 @@ make_handshake(Req) ->
           error
     end.
 
--ifdef(crypto_compatibility).
-b64_encode(Bin) ->
-    base64:encode(crypto:sha(Bin)).
--else.
 b64_encode(Bin) ->
     base64:encode(crypto:hash(sha, Bin)).
--endif.
 
 hybi_handshake(SecKey) ->
     BinKey = list_to_binary(SecKey),

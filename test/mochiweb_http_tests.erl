@@ -1,11 +1,7 @@
 -module(mochiweb_http_tests).
 -include_lib("eunit/include/eunit.hrl").
 
--ifdef(gen_tcp_r15b_workaround).
--define(SHOULD_HAVE_BUG, true).
--else.
--define(SHOULD_HAVE_BUG, false).
--endif.
+-define(R15_WORKAROUND, false).
 
 has_acceptor_bug_test_() ->
     {setup,
@@ -31,7 +27,7 @@ has_acceptor_bug_tests(Server) ->
     [{"1000 should be fine even with the bug",
       ?_assertEqual(false, has_bug(Port, 1000))},
      {"10000 should trigger the bug if present",
-      ?_assertEqual(?SHOULD_HAVE_BUG, has_bug(Port, 10000))}].
+      ?_assertEqual(?R15_WORKAROUND, has_bug(Port, 10000))}].
 
 responder(Req) ->
     Req:respond({200,
@@ -59,9 +55,11 @@ get_req() ->
       "Accept: */*\r\n\r\n">>.
 
 unexpected_msg(Server, MsgAt, Msg) ->
-    %% Set up with a single acceptor, dig out the pid - sensitive to change in mochiweb_socket_server
-    %% state record.
-    [Acceptor] = sets:to_list(element(14, sys:get_state(Server))),
+    {_, FieldIdx} = lists:keyfind(
+        acceptor_pool, 1, mochiweb_socket_server:state_fields()),
+    %% Set up with a single acceptor, dig out the pid from the
+    %% mochiweb_socket_server state record.
+    [Acceptor] = sets:to_list(element(FieldIdx, sys:get_state(Server))),
     Port = mochiweb_socket_server:get(Server, port),
     <<Before:MsgAt/binary, After/binary>> = get_req(),
     {ok, S} = gen_tcp:connect({127,0,0,1},Port,[binary,{active,false}]),

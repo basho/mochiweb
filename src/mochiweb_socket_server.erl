@@ -14,6 +14,11 @@
          handle_info/2]).
 -export([get/2, set/3]).
 
+-ifdef(TEST).
+%% Tests need to look inside the state.
+-export([state_fields/0]).
+-endif.
+
 -record(mochiweb_socket_server,
         {port,
          loop,
@@ -128,7 +133,7 @@ parse_options([{recbuf, RecBuf} | Rest], State) when is_integer(RecBuf) orelse
     %% and this doubled value is returned by getsockopt(2).
     %%
     %% See: man 7 socket | grep SO_RCVBUF
-    %% 
+    %%
     %% In case undefined is passed instead of the default buffer
     %% size ?RECBUF_SIZE, no size is set and the OS can control it dynamically
     parse_options(Rest, State#mochiweb_socket_server{recbuf=RecBuf});
@@ -200,7 +205,7 @@ init(State=#mochiweb_socket_server{ip=Ip, port=Port, backlog=Backlog,
         {_, _, _, _, _, _, _, _} -> % IPv6
             [inet6, {ip, Ip} | BaseOpts]
     end,
-    OptsBuf=case RecBuf of 
+    OptsBuf=case RecBuf of
         undefined ->
             Opts;
         _ ->
@@ -364,7 +369,6 @@ handle_info(Info, State) ->
     {noreply, State}.
 
 
-
 %%
 %% Tests
 %%
@@ -391,4 +395,10 @@ upgrade_state_test() ->
                                        profile_fun=undefined},
     ?assertEqual(CmpState, State).
 
--endif.
+%% Exported so tests can peer into the state.
+-spec state_fields() -> [{atom(), pos_integer()}].
+state_fields() ->
+    Fields = record_info(fields, mochiweb_socket_server),
+    lists:zip(Fields, lists:seq(2, (erlang:length(Fields) + 1))).
+
+-endif. % TEST
