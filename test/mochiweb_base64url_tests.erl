@@ -1,6 +1,12 @@
 -module(mochiweb_base64url_tests).
 -include_lib("eunit/include/eunit.hrl").
 
+-ifdef(NO_RAND_MODULE).
+-define(rand_uniform(N),    random:uniform(N)).
+-else.
+-define(rand_uniform(N),    rand:uniform(N)).
+-endif.
+
 id(X) ->
     ?assertEqual(
        X,
@@ -11,8 +17,8 @@ id(X) ->
          binary_to_list(mochiweb_base64url:encode(binary_to_list(X))))).
 
 random_binary(Short,Long) ->
-    << <<(random:uniform(256) - 1)>>
-     || _ <- lists:seq(1, Short + random:uniform(1 + Long - Short) - 1) >>.
+    << <<(?rand_uniform(256) - 1)>>
+     || _ <- lists:seq(1, Short + ?rand_uniform(1 + Long - Short) - 1) >>.
 
 empty_test() ->
     id(<<>>).
