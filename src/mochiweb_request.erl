@@ -119,6 +119,21 @@ get(peer, {?MODULE, [Socket, _Opts, _Method, _RawPath, _Version, _Headers]}=THIS
                 Hosts ->
                     string:strip(lists:last(string:tokens(Hosts, ",")))
             end;
+        %% Copied this syntax from webmachine contributor Steve Vinoski
+        {ok, {Addr={172, Second, _, _}, _Port}} when (Second > 15) andalso (Second < 32) ->
+            case get_header_value("x-forwarded-for", THIS) of
+                undefined ->
+                    inet_parse:ntoa(Addr);
+                Hosts ->
+                    string:strip(lists:last(string:tokens(Hosts, ",")))
+            end;
+        {ok, {Addr={192, 168, _, _}, _Port}} ->
+            case get_header_value("x-forwarded-for", THIS) of
+                undefined ->
+                    inet_parse:ntoa(Addr);
+                Hosts ->
+                    string:strip(lists:last(string:tokens(Hosts, ",")))
+            end;
         {ok, {{127, 0, 0, 1}, _Port}} ->
             case get_header_value("x-forwarded-for", THIS) of
                 undefined ->
@@ -135,7 +150,7 @@ get(path, {?MODULE, [_Socket, _Opts, _Method, RawPath, _Version, _Headers]}) ->
     case erlang:get(?SAVE_PATH) of
         undefined ->
             {Path0, _, _} = mochiweb_util:urlsplit_path(RawPath),
-            Path = mochiweb_util:unquote(Path0),
+            Path = mochiweb_util:normalize_path(mochiweb_util:unquote(Path0)),
             put(?SAVE_PATH, Path),
             Path;
         Cached ->
@@ -326,12 +341,10 @@ format_response_header({Code, ResponseHeaders}, {?MODULE, [_Socket, _Opts, _Meth
                      false ->
                          HResponse1
                  end,
-    F = fun ({K, V}, Acc) ->
-                [mochiweb_util:make_io(K), <<": ">>, V, <<"\r\n">> | Acc]
-        end,
-    End = lists:foldl(F, [<<"\r\n">>], mochiweb_headers:to_list(HResponse2)),
+    End = [[mochiweb_util:make_io(K), <<": ">>, V, <<"\r\n">>]
+           || {K, V} <- mochiweb_headers:to_list(HResponse2)],
     Response = mochiweb:new_response({THIS, Code, HResponse2}),
-    {[make_version(Version), make_code(Code), <<"\r\n">> | End], Response};
+    {[make_version(Version), make_code(Code), <<"\r\n">> | [End, <<"\r\n">>]], Response};
 format_response_header({Code, ResponseHeaders, Length},
                        {?MODULE, [_Socket, _Opts, _Method, _RawPath, _Version, _Headers]}=THIS) ->
     HResponse = mochiweb_headers:make(ResponseHeaders),
@@ -689,7 +702,7 @@ maybe_serve_file(File, ExtraHeaders, {?MODULE, [_Socket, _Opts, _Method, _RawPat
 
 server_headers() ->
     [{"Server", "MochiWeb/1.0 (" ++ ?QUIP ++ ")"},
-     {"Date", httpd_util:rfc1123_date()}].
+     {"Date", mochiweb_clock:rfc1123()}].
 
 make_code(X) when is_integer(X) ->
     [integer_to_list(X), [" " | httpd_util:reason_phrase(X)]];

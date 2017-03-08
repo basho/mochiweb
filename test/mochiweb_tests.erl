@@ -6,7 +6,7 @@ with_server(Transport, ServerFun, ClientFun) ->
     mochiweb_test_util:with_server(Transport, ServerFun, ClientFun).
 
 request_test() ->
-    R = mochiweb_request:new(z, z, "/foo/bar/baz%20wibble+quux?qs=2", z, []),
+    R = mochiweb_request:new(z, z, "//foo///bar/baz%20wibble+quux?qs=2", z, []),
     "/foo/bar/baz wibble quux" = R:get(path),
     ok.
 
@@ -96,6 +96,23 @@ single_GET_any_test_() ->
       ?_assertEqual(ok, with_server(Transport, ServerFun, ClientFun))}
      || Transport <- [ssl, plain]].
 
+
+cookie_header_test() ->
+    ReplyPrefix = "You requested: ",
+    ExHeaders = [{"Set-Cookie", "foo=bar"},
+                 {"Set-Cookie", "foo=baz"}],
+    ServerFun = fun (Req) ->
+                        Reply = ReplyPrefix ++ Req:get(path),
+                        Req:ok({"text/plain", ExHeaders, Reply})
+                end,
+    Path = "cookie_header",
+    ExpectedReply = list_to_binary(ReplyPrefix ++ Path),
+    TestReqs = [#treq{path=Path, xreply=ExpectedReply, xheaders=ExHeaders}],
+    ClientFun = new_client_fun('GET', TestReqs),
+    ok = with_server(plain, ServerFun, ClientFun),
+    ok.
+
+
 do_CONNECT(Transport, Times) ->
     PathPrefix = "example.com:",
     ReplyPrefix = "You requested: ",
@@ -138,7 +155,7 @@ do_POST(Transport, Size, Times) ->
                 end,
     TestReqs = [begin
                     Path = "/stuff/" ++ integer_to_list(N),
-                    Body = crypto:rand_bytes(Size),
+                    Body = crypto:strong_rand_bytes(Size),
                     #treq{path=Path, body=Body, xreply=Body}
                 end || N <- lists:seq(1, Times)],
     ClientFun = new_client_fun('POST', TestReqs),
