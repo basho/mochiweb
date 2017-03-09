@@ -1,15 +1,22 @@
 -module(mochiweb_test_util).
 -export([with_server/3, client_request/4, sock_fun/2,
          read_server_headers/1, drain_reply/3]).
+
+-export([ssl_cert_opts/1]).
+
 -include("mochiweb_test_util.hrl").
 -include_lib("eunit/include/eunit.hrl").
 
-ssl_cert_opts() ->
-    EbinDir = filename:dirname(code:which(?MODULE)),
+
+ssl_cert_opts(Module) ->
+    % code:which(?MODULE) returns `cover_compiled`
+    {_, _, Filename} = code:get_object_code(Module),
+    EbinDir = filename:dirname(Filename),
     CertDir = filename:join([EbinDir, "..", "support", "test-materials"]),
     CertFile = filename:join(CertDir, "test_ssl_cert.pem"),
     KeyFile = filename:join(CertDir, "test_ssl_key.pem"),
     [{certfile, CertFile}, {keyfile, KeyFile}].
+
 
 with_server(Transport, ServerFun, ClientFun) ->
     ServerOpts0 = [{ip, "127.0.0.1"}, {port, 0}, {loop, ServerFun}],
@@ -17,7 +24,7 @@ with_server(Transport, ServerFun, ClientFun) ->
         plain ->
             ServerOpts0;
         ssl ->
-            ServerOpts0 ++ [{ssl, true}, {ssl_opts, ssl_cert_opts()}]
+            ServerOpts0 ++ [{ssl, true}, {ssl_opts, ssl_cert_opts(?MODULE)}]
     end,
     {ok, Server} = mochiweb_http:start_link(ServerOpts),
     Port = mochiweb_socket_server:get(Server, port),
