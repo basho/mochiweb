@@ -1,19 +1,5 @@
-MochiWeb is an Erlang library for building lightweight HTTP servers.
+Basho's fork of MochiWeb, a Erlang library for building lightweight HTTP servers.
 
 [![Build Status](https://secure.travis-ci.org/basho/mochiweb.png?branch=master)](http://travis-ci.org/basho/mochiweb)
 
-The latest version of MochiWeb is available at http://github.com/mochi/mochiweb
-
-The mailing list for MochiWeb is at http://groups.google.com/group/mochiweb/
-
-R12B compatibility:
-The master of MochiWeb is tested with R14A and later. A branch compatible
-with R12B is maintained separately at http://github.com/lemenkov/mochiweb
-The R12B branch of that repository is mirrored in the official repository
-occasionally for convenience.
-
-To create a new mochiweb using project:
-   make app PROJECT=project_name
-
-To create a new mochiweb using project in a specific directory:
-   make app PROJECT=project_name PREFIX=$HOME/projects/
+The canonical version of MochiWeb is available at http://github.com/mochi/mochiweb
