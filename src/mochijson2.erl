@@ -83,9 +83,7 @@
         (C =:= $\s orelse C =:= $\t orelse C =:= $\r orelse C =:= $\n)).
 
 -ifdef(NO_MAP_TYPE).
-%% Generates a compiler warning, which is far too much work to get around.
-%% The offending code *should* be optimized away.
--define(IS_MAP(_), false).
+-define(IS_MAP(X), is_list([X]) =/= is_list([X])).
 -else.
 -define(IS_MAP(X), is_map(X)).
 -endif.
