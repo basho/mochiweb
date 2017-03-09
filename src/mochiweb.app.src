@@ -10,7 +10,8 @@
         ssl,
         xmerl,
         compiler,
-        syntax_tools
+        syntax_tools,
+        public_key
     ]},
     {modules,       []},
     {registered,    []},
