@@ -64,6 +64,19 @@
 % Maximum recv_body() length of 1MB
 -define(MAX_RECV_BODY, (1024*1024)).
 
+%%
+%% Ignored dialyzer warnings
+%%
+%% src/mochiweb_request.erl
+%%  428: Function ok/2 has no local return
+%%  432: The call THIS:'get'('range') requires that THIS is of type atom() not {'mochiweb_request',[any(),...]}
+%%  730: Function range_parts/2 will never be called
+%%  732: The created fun has no local return
+%%  755: The created fun has no local return
+%%
+-dialyzer({[no_unused, no_return], [range_parts/2]}).
+-dialyzer({nowarn_function, [ok/2]}).
+
 %% @spec new(Socket, Method, RawPath, Version, headers()) -> request()
 %% @doc Create a new request instance.
 new(Socket, Method, RawPath, Version, Headers) ->

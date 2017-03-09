@@ -35,6 +35,19 @@
 -define(DEFAULTS, [{name, ?MODULE},
                    {port, 8888}]).
 
+%%
+%% Ignored dialyzer warnings
+%%
+%% src/mochiweb_http.erl
+%%  121: The created fun has no local return
+%%  176: The call Req:'respond'({400,[],[]}) requires that Req is of type atom() not {'mochiweb_request',[any(),...]}
+%%  184: Function after_response/2 has no local return
+%%  193: The call mochiweb_request:get('opts', Req::atom()) will never return since it differs in the 2nd argument from the success typing arguments: ('body_length' | 'headers' | 'method' | 'opts' | 'path' | 'peer' | 'range' | 'raw_path' | 'scheme' | 'socket' | 'version', {'mochiweb_request',[any(),...]})
+%%
+-dialyzer({no_return, reentry/1}).
+-dialyzer({nowarn_function, [handle_invalid_request/4,
+                             after_response/2]}).
+
 parse_options(Options) ->
     {loop, HttpLoop} = proplists:lookup(loop, Options),
     Loop = {?MODULE, loop, [HttpLoop]},

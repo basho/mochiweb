@@ -31,6 +31,18 @@
 -compile(export_all).
 -endif.
 
+
+%%
+%% Ignored dialyzer warnings
+%%
+%% src/mochiweb_websocket.erl
+%%  138: Function scheme/1 has no local return
+%%  139: The call mochiweb_request:get('scheme', Req::atom()) will never return since it differs in the 2nd argument from the success typing arguments: ('body_length' | 'headers' | 'method' | 'opts' | 'path' | 'peer' | 'range' | 'raw_path' | 'scheme' | 'socket' | 'version', {'mochiweb_request',[any(),...]})
+%%  146: Function hixie_handshake/7 will never be called
+%%
+-dialyzer({no_unused, [hixie_handshake/7]}).
+-dialyzer({nowarn_function, [scheme/1]}).
+
 loop(Socket, Body, State, WsVersion, ReplyChannel) ->
     ok = mochiweb_socket:exit_if_closed(mochiweb_socket:setopts(Socket, [{packet, 0}, {active, once}])),
     proc_lib:hibernate(?MODULE, request,
