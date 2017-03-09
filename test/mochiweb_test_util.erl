@@ -9,13 +9,19 @@
 
 
 ssl_cert_opts(Module) ->
-    % code:which(?MODULE) returns `cover_compiled`
-    {_, _, Filename} = code:get_object_code(Module),
-    EbinDir = filename:dirname(Filename),
-    CertDir = filename:join([EbinDir, "..", "support", "test-materials"]),
-    CertFile = filename:join(CertDir, "test_ssl_cert.pem"),
-    KeyFile = filename:join(CertDir, "test_ssl_key.pem"),
+    CertFile = test_dir_file(Module, "test_ssl_cert.pem"),
+    KeyFile = test_dir_file(Module, "test_ssl_key.pem"),
     [{certfile, CertFile}, {keyfile, KeyFile}].
+
+
+test_dir_file(Module, Path) ->
+    filename:join([get_app_home(Module), "test", Path]).
+
+get_app_home(Module) ->
+    % code:which(?MODULE) returns `cover_compiled`
+    {_, _, BeamPath} = code:get_object_code(Module),
+    filename:dirname(filename:dirname(BeamPath)).
+
 
 
 with_server(Transport, ServerFun, ClientFun) ->
