@@ -35,10 +35,3 @@ upgrade() ->
 init([]) ->
     Processes = [],
     {ok, {{one_for_one, 10, 10}, Processes}}.
-
-%%
-%% Tests
-%%
--ifdef(TEST).
--include_lib("eunit/include/eunit.hrl").
--endif.

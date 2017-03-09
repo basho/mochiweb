@@ -75,10 +75,3 @@ ensuredir(Dir) ->
         E ->
             E
     end.
-
-%%
-%% Tests
-%%
--ifdef(TEST).
--include_lib("eunit/include/eunit.hrl").
--endif.

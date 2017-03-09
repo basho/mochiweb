@@ -18,10 +18,3 @@ start(_Type, _StartArgs) ->
 %% @doc application stop callback for mochiweb.
 stop(_State) ->
     ok.
-
-%%
-%% Tests
-%%
--ifdef(TEST).
--include_lib("eunit/include/eunit.hrl").
--endif.
