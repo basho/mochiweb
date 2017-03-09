@@ -29,7 +29,8 @@
 -export([new/3, get_header_value/2, get/2, dump/1]).
 -export([send/2, write_chunk/2]).
 
-%% @type response() = {atom(), Data::list()}. Where Data is [Request, Code, Headers]
+-export_type([response/0]).
+-type response() :: {atom(), list()}.   %% {Module, [Request, Code, Headers]}
 
 %% @spec new(Request, Code, Headers) -> response()
 %% @doc Create a new mochiweb_response instance.

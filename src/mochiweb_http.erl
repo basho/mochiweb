@@ -28,25 +28,14 @@
 -export([after_response/2, reentry/1]).
 -export([parse_range_request/1, range_skip_length/2]).
 
+-type callable() :: {atom(), atom(), list()} | {atom(), atom()} | function().
+
 -define(REQUEST_RECV_TIMEOUT, 300000).   %% timeout waiting for request line
 -define(HEADERS_RECV_TIMEOUT, 30000).    %% timeout waiting for headers
 
 -define(MAX_HEADERS, 1000).
 -define(DEFAULTS, [{name, ?MODULE},
                    {port, 8888}]).
-
-%%
-%% Ignored dialyzer warnings
-%%
-%% src/mochiweb_http.erl
-%%  121: The created fun has no local return
-%%  176: The call Req:'respond'({400,[],[]}) requires that Req is of type atom() not {'mochiweb_request',[any(),...]}
-%%  184: Function after_response/2 has no local return
-%%  193: The call mochiweb_request:get('opts', Req::atom()) will never return since it differs in the 2nd argument from the success typing arguments: ('body_length' | 'headers' | 'method' | 'opts' | 'path' | 'peer' | 'range' | 'raw_path' | 'scheme' | 'socket' | 'version', {'mochiweb_request',[any(),...]})
-%%
--dialyzer({no_return, reentry/1}).
--dialyzer({nowarn_function, [handle_invalid_request/4,
-                             after_response/2]}).
 
 parse_options(Options) ->
     {loop, HttpLoop} = proplists:lookup(loop, Options),
@@ -155,6 +144,7 @@ headers(Socket, Opts, Request, Headers, Body, HeaderCount) ->
         exit(normal)
     end.
 
+-spec call_body(callable(), mochiweb:request()) -> term().
 call_body({M, F, A}, Req) ->
     erlang:apply(M, F, [Req | A]);
 call_body({M, F}, Req) ->
@@ -172,23 +162,24 @@ handle_invalid_msg_request(_Msg, Socket, Opts, Request, RevHeaders) ->
 
 -spec handle_invalid_request(term(), term(), term(), term()) -> no_return().
 handle_invalid_request(Socket, Opts, Request, RevHeaders) ->
-    Req = new_request(Socket, Opts, Request, RevHeaders),
-    Req:respond({400, [], []}),
-    mochiweb_socket:close(Socket),
+    {Mod, _} = Req = new_request(Socket, Opts, Request, RevHeaders),
+    _ = Mod:respond({400, [], []}, Req),
+    _ = mochiweb_socket:close(Socket),
     exit(normal).
 
 new_request(Socket, Opts, Request, RevHeaders) ->
     ok = mochiweb_socket:exit_if_closed(mochiweb_socket:setopts(Socket, [{packet, raw}])),
     mochiweb:new_request({Socket, Opts, Request, lists:reverse(RevHeaders)}).
 
-after_response(Body, Req) ->
-    Socket = Req:get(socket),
-    case Req:should_close() of
+-spec after_response(Body :: callable(), Req :: mochiweb:request()) -> term().
+after_response(Body, {Mod, _} = Req) ->
+    Socket = Mod:get(socket, Req),
+    case Mod:should_close(Req) of
         true ->
             mochiweb_socket:close(Socket),
             exit(normal);
         false ->
-            Req:cleanup(),
+            Mod:cleanup(Req),
             erlang:garbage_collect(),
             ?MODULE:loop(Socket, mochiweb_request:get(opts, Req), Body)
     end.

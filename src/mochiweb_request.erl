@@ -42,6 +42,9 @@
 -export([accepted_encodings/2]).
 -export([accepts_content_type/2, accepted_content_types/2]).
 
+-export_type([request/0]).
+-type request() :: {atom(), list()}.    %% {Module, [Socket, Method, RawPath, Version, Headers]}
+
 -define(SAVE_QS, mochiweb_request_qs).
 -define(SAVE_PATH, mochiweb_request_path).
 -define(SAVE_RECV, mochiweb_request_recv).
@@ -54,8 +57,6 @@
 %% @type key() = atom() | string() | binary()
 %% @type value() = atom() | string() | binary() | integer()
 %% @type headers(). A mochiweb_headers structure.
-%% @type request() = {mochiweb_request, Data::list()}. Where Data is [_Socket, _Method, _RawPath, _Version, _Headers]
-%% @type response(). A mochiweb_response tuple module instance.
 %% @type ioheaders() = headers() | [{key(), value()}].
 
 % 5 minute default idle timeout
@@ -63,19 +64,6 @@
 
 % Maximum recv_body() length of 1MB
 -define(MAX_RECV_BODY, (1024*1024)).
-
-%%
-%% Ignored dialyzer warnings
-%%
-%% src/mochiweb_request.erl
-%%  428: Function ok/2 has no local return
-%%  432: The call THIS:'get'('range') requires that THIS is of type atom() not {'mochiweb_request',[any(),...]}
-%%  730: Function range_parts/2 will never be called
-%%  732: The created fun has no local return
-%%  755: The created fun has no local return
-%%
--dialyzer({[no_unused, no_return], [range_parts/2]}).
--dialyzer({nowarn_function, [ok/2]}).
 
 %% @spec new(Socket, Method, RawPath, Version, headers()) -> request()
 %% @doc Create a new request instance.
@@ -313,14 +301,14 @@ stream_body(MaxChunkSize, ChunkFun, FunState, MaxBodyLength,
     end.
 
 
-%% @spec start_response({integer(), ioheaders()}, request()) -> response()
+%% @spec start_response({integer(), ioheaders()}, request()) -> mochiweb:response()
 %% @doc Start the HTTP response by sending the Code HTTP response and
 %%      ResponseHeaders. The server will set header defaults such as Server
 %%      and Date if not present in ResponseHeaders.
 start_response({Code, ResponseHeaders}, {?MODULE, [_Socket, _Opts, _Method, _RawPath, _Version, _Headers]}=THIS) ->
     start_raw_response({Code, ResponseHeaders}, THIS).
 
-%% @spec start_raw_response({integer(), headers()}, request()) -> response()
+%% @spec start_raw_response({integer(), headers()}, request()) -> mochiweb:response()
 %% @doc Start the HTTP response by sending the Code HTTP response and
 %%      ResponseHeaders.
 start_raw_response({Code, ResponseHeaders}, {?MODULE, [_Socket, _Opts, _Method, _RawPath, _Version, _Headers]}=THIS) ->
@@ -329,7 +317,8 @@ start_raw_response({Code, ResponseHeaders}, {?MODULE, [_Socket, _Opts, _Method, 
     Response.
 
 
-%% @spec start_response_length({integer(), ioheaders(), integer()}, request()) -> response()
+%% @spec start_response_length({integer(), ioheaders(), integer()}, request())
+%%          -> mochiweb:response()
 %% @doc Start the HTTP response by sending the Code HTTP response and
 %%      ResponseHeaders including a Content-Length of Length. The server
 %%      will set header defaults such as Server
@@ -364,7 +353,8 @@ format_response_header({Code, ResponseHeaders, Length},
     HResponse1 = mochiweb_headers:enter("Content-Length", Length, HResponse),
     format_response_header({Code, HResponse1}, THIS).
 
-%% @spec respond({integer(), ioheaders(), iodata() | chunked | {file, IoDevice}}, request()) -> response()
+%% @spec respond({integer(), ioheaders(), iodata() | chunked | {file, IoDevice}}, request())
+%%          -> mochiweb:response()
 %% @doc Start the HTTP response with start_response, and send Body to the
 %%      client (if the get(method) /= 'HEAD'). The Content-Length header
 %%      will be set by the Body length, and the server will insert header
@@ -410,26 +400,26 @@ respond({Code, ResponseHeaders, Body}, {?MODULE, [_Socket, _Opts, Method, _RawPa
     end,
     Response.
 
-%% @spec not_found(request()) -> response()
+%% @spec not_found(request()) -> mochiweb:response()
 %% @doc Alias for <code>not_found([])</code>.
 not_found({?MODULE, [_Socket, _Opts, _Method, _RawPath, _Version, _Headers]}=THIS) ->
     not_found([], THIS).
 
-%% @spec not_found(ExtraHeaders, request()) -> response()
+%% @spec not_found(ExtraHeaders, request()) -> mochiweb:response()
 %% @doc Alias for <code>respond({404, [{"Content-Type", "text/plain"}
 %% | ExtraHeaders], &lt;&lt;"Not found."&gt;&gt;})</code>.
 not_found(ExtraHeaders, {?MODULE, [_Socket, _Opts, _Method, _RawPath, _Version, _Headers]}=THIS) ->
     respond({404, [{"Content-Type", "text/plain"} | ExtraHeaders],
              <<"Not found.">>}, THIS).
 
-%% @spec ok({value(), iodata()} | {value(), ioheaders(), iodata() | {file, IoDevice}}, request()) ->
-%%           response()
+%% @spec ok({value(), iodata()} | {value(), ioheaders(), iodata() | {file, IoDevice}}, request())
+%%          -> mochiweb:response()
 %% @doc respond({200, [{"Content-Type", ContentType} | Headers], Body}).
 ok({ContentType, Body}, {?MODULE, [_Socket, _Opts, _Method, _RawPath, _Version, _Headers]}=THIS) ->
     ok({ContentType, [], Body}, THIS);
 ok({ContentType, ResponseHeaders, Body}, {?MODULE, [_Socket, _Opts, _Method, _RawPath, _Version, _Headers]}=THIS) ->
     HResponse = mochiweb_headers:make(ResponseHeaders),
-    case THIS:get(range) of
+    case ?MODULE:get(range, THIS) of
         X when (X =:= undefined orelse X =:= fail) orelse Body =:= chunked ->
             %% http://code.google.com/p/mochiweb/issues/detail?id=54
             %% Range header not supported when chunked, return 200 and provide

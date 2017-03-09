@@ -39,7 +39,6 @@
 %% @type header() = {key(), value()}.
 %% @type bodypart() = {Start::integer(), End::integer(), Body::iolist()}.
 %% @type formfile() = {Name::string(), ContentType::string(), Content::binary()}.
-%% @type request().
 %% @type file_handler() = (Filename::string(), ContentType::string()) -> file_handler_callback().
 %% @type file_handler_callback() = (binary() | eof) -> file_handler_callback() | term().
 
@@ -91,7 +90,7 @@ multipart_body([{Start, End, Body} | BodyList], ContentType, Boundary, Size) ->
 parse_form(Req) ->
     parse_form(Req, fun default_file_handler/2).
 
-%% @spec parse_form(request(), F::file_handler()) -> [{string(), string() | term()}]
+%% @spec parse_form(mochiweb:request(), F::file_handler()) -> [{string(), string() | term()}]
 %% @doc Parse a multipart form from the given request using the given file_handler().
 parse_form(Req, FileHandler) ->
     Callback = fun (Next) -> parse_form_outer(Next, FileHandler, []) end,

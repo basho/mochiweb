@@ -28,6 +28,10 @@
 -export([all_loaded/0, all_loaded/1, reload/0]).
 -export([ensure_started/1]).
 
+-export_type([request/0, response/0]).
+-type request()   :: mochiweb_request:request().
+-type response()  :: mochiweb_response:response().
+
 reload() ->
     [c:l(Module) || Module <- all_loaded()].
 

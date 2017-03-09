@@ -27,21 +27,17 @@
 
 -export([loop/5, upgrade_connection/2, request/5]).
 -export([send/3]).
+
 -ifdef(TEST).
--compile(export_all).
+-export([
+    hixie_handshake/7,
+    make_handshake/1,
+    parse_hixie_frames/2,
+    parse_hybi_frames/3
+]).
 -endif.
 
-
-%%
-%% Ignored dialyzer warnings
-%%
-%% src/mochiweb_websocket.erl
-%%  138: Function scheme/1 has no local return
-%%  139: The call mochiweb_request:get('scheme', Req::atom()) will never return since it differs in the 2nd argument from the success typing arguments: ('body_length' | 'headers' | 'method' | 'opts' | 'path' | 'peer' | 'range' | 'raw_path' | 'scheme' | 'socket' | 'version', {'mochiweb_request',[any(),...]})
-%%  146: Function hixie_handshake/7 will never be called
-%%
--dialyzer({no_unused, [hixie_handshake/7]}).
--dialyzer({nowarn_function, [scheme/1]}).
+-type callable() :: {atom(), atom(), list()} | {atom(), atom()} | function().
 
 loop(Socket, Body, State, WsVersion, ReplyChannel) ->
     ok = mochiweb_socket:exit_if_closed(mochiweb_socket:setopts(Socket, [{packet, 0}, {active, once}])),
@@ -89,11 +85,12 @@ send(Socket, Payload, hybi) ->
 send(Socket, Payload, hixie) ->
     mochiweb_socket:send(Socket, [0, Payload, 255]).
 
-upgrade_connection(Req, Body) ->
+-spec upgrade_connection(mochiweb:request(), callable()) -> tuple().
+upgrade_connection({Mod, _} = Req, Body) ->
     case make_handshake(Req) of
         {Version, Response} ->
-            Req:respond(Response),
-            Socket = Req:get(socket),
+            _ = Mod:respond(Response, Req),
+            Socket = Mod:get(socket, Req),
             ReplyChannel = fun (Payload) ->
                 ?MODULE:send(Socket, Payload, Version)
             end,
@@ -102,25 +99,26 @@ upgrade_connection(Req, Body) ->
             end,
             {Reentry, ReplyChannel};
         _ ->
-            mochiweb_socket:close(Req:get(socket)),
+            _ = mochiweb_socket:close(Mod:get(socket, Req)),
             exit(normal)
     end.
 
-make_handshake(Req) ->
-    SecKey  = Req:get_header_value("sec-websocket-key"),
-    Sec1Key = Req:get_header_value("Sec-WebSocket-Key1"),
-    Sec2Key = Req:get_header_value("Sec-WebSocket-Key2"),
-    Origin = Req:get_header_value(origin),
-    if SecKey =/= undefined ->
+-spec make_handshake(mochiweb:request()) -> term().
+make_handshake({Mod, _} = Req) ->
+    SecKey  = Mod:get_header_value("sec-websocket-key", Req),
+    Sec1Key = Mod:get_header_value("Sec-WebSocket-Key1", Req),
+    Sec2Key = Mod:get_header_value("Sec-WebSocket-Key2", Req),
+    Origin = Mod:get_header_value(origin, Req),
+    if  SecKey =/= undefined ->
             hybi_handshake(SecKey);
-       Sec1Key =/= undefined andalso Sec2Key =/= undefined ->
-            Host = Req:get_header_value("Host"),
-            Path = Req:get(path),
-            Body = Req:recv(8),
+        Sec1Key =/= undefined andalso Sec2Key =/= undefined ->
+            Host = Mod:get_header_value("Host", Req),
+            Path = Mod:get(path, Req),
+            Body = Mod:recv(8),
             Scheme = scheme(Req),
             hixie_handshake(Scheme, Host, Path, Sec1Key, Sec2Key, Body, Origin);
-       true ->
-          error
+        true ->
+            error
     end.
 
 b64_encode(Bin) ->
@@ -135,8 +133,9 @@ hybi_handshake(SecKey) ->
                       {"Sec-Websocket-Accept", Challenge}], ""},
     {hybi, Response}.
 
-scheme(Req) ->
-    case mochiweb_request:get(scheme, Req) of
+-spec scheme(mochiweb:request()) -> string().
+scheme({Mod, _} = Req) ->
+    case Mod:get(scheme, Req) of
         http ->
             "ws://";
         https ->
