@@ -25,7 +25,7 @@
          escape_attr/1, to_html/1]).
 
 -ifdef(TEST).
--compile([export_all]).
+-export([destack/1, destack/2, is_singleton/1]).
 -endif.
 
 %% This is a macro to placate syntax highlighters..
