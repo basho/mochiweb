@@ -66,8 +66,8 @@ rfc1123() ->
 -spec init([]) -> {ok, #state{}}.
 init([]) ->
     ?MODULE = ets:new(?MODULE, [named_table, protected, {read_concurrency, true}]),
-    handle_info(update_date, #state{}),
-    timer:send_interval(1000, update_date),
+    _ = handle_info(update_date, #state{}),
+    _ = timer:send_interval(1000, update_date),
     {ok, #state{}}.
 
 -type from() :: {pid(), term()}.
@@ -98,4 +98,3 @@ terminate(_Reason, _State) ->
 -spec code_change(_, State, _) -> {ok, State} when State::#state{}.
 code_change(_OldVsn, State, _Extra) ->
     {ok, State}.
-

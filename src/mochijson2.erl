@@ -214,6 +214,7 @@ json_encode_proplist(Props, State) ->
 %% The ?IS_MAP(Bad) definition guarantees that this branch is dead.
 %% Inlining it *should* cause it all to be optimized away.
 -compile({inline, json_encode_map/2}).
+-spec json_encode_map(any(), any()) -> no_return().
 json_encode_map(Bad, _State) ->
     exit({json_encode, {bad_term, Bad}}).
 -else.
