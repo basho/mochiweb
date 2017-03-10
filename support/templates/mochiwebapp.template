@@ -1,4 +1,6 @@
 %% -*- erlang -*-
+{description, "Mochiweb application skeleton"}.
+
 {variables, [{appid, "mochiwebapp"},
              {author, "Mochi Media <dev@mochimedia.com>"},
              {year, "2010"},
@@ -15,10 +17,7 @@
 {template, "mochiwebapp_skel/start-dev.sh", "{{dest}}/start-dev.sh"}.
 {template, "mochiwebapp_skel/bench.sh", "{{dest}}/bench.sh"}.
 {template, "mochiwebapp_skel/priv/www/index.html", "{{dest}}/priv/www/index.html"}.
-{file, "../../.gitignore", "{{dest}}/.gitignore"}.
-{file, "../../Makefile", "{{dest}}/Makefile"}.
+{file, "./.gitignore", "{{dest}}/.gitignore"}.
 {file, "mochiwebapp_skel/rebar.config", "{{dest}}/rebar.config"}.
-{file, "../../rebar", "{{dest}}/rebar"}.
-{chmod, 8#755, "{{dest}}/rebar"}.
-{chmod, 8#755, "{{dest}}/start-dev.sh"}.
-{chmod, 8#755, "{{dest}}/bench.sh"}.
+{chmod, "{{dest}}/start-dev.sh", 8#755}.
+{chmod, "{{dest}}/bench.sh", 8#755}.
