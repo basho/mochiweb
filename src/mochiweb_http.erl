@@ -82,26 +82,20 @@ request(Socket, Opts, Body) ->
         {Protocol, _, {http_request, Method, Path, Version}} when Protocol == http orelse Protocol == ssl ->
             ok = mochiweb_socket:exit_if_closed(mochiweb_socket:setopts(Socket, [{packet, httph}])),
             headers(Socket, Opts, {Method, Path, Version}, [], Body, 0);
-        {Protocol, _, {http_error, "\r\n"}} when Protocol == http orelse Protocol == ssl ->
+        {Protocol, _, {http_error, Newline}}
+                when    (Newline =:= "\r\n" orelse Newline =:= "\n")
+                andalso (Protocol == http orelse Protocol == ssl) ->
             request(Socket, Opts, Body);
-        {Protocol, _, {http_error, "\n"}} when Protocol == http orelse Protocol == ssl ->
-            request(Socket, Opts, Body);
-        {tcp_closed, _} ->
-            mochiweb_socket:close(Socket),
-            exit(normal);
-        {ssl_closed, _} ->
-            mochiweb_socket:close(Socket),
-            exit(normal);
-        Msg = {ProtocolErr, _Socket, emsgsize} when
-              ProtocolErr =:= tcp_error ; ProtocolErr =:= ssl_error ->
-            handle_invalid_msg_request(Msg, Socket, Opts);
-        {ProtocolErr, _Socket, _Reason} when
-              ProtocolErr =:= tcp_error ; ProtocolErr =:= ssl_error ->
-            mochiweb_socket:close(Socket),
-            exit(normal)
-    after ?REQUEST_RECV_TIMEOUT ->
-        mochiweb_socket:close(Socket),
-        exit(normal)
+        {Closed, _} when Closed == tcp_closed orelse Closed == ssl_closed ->
+            close_and_exit(Socket);
+        {ProtoErr, _, _} = Msg when ProtoErr == tcp_error orelse ProtoErr == ssl_error ->
+            handle_terminating_error(Msg, Socket, Opts);
+        Spurious ->
+            log_unexpected_message(spurious, Spurious),
+            request(Socket, Opts, Body)
+    after
+        ?REQUEST_RECV_TIMEOUT ->
+            close_and_exit(Socket)
     end.
 
 reentry(Body) ->
@@ -113,31 +107,26 @@ headers(Socket, Opts, Request, Headers, _Body, ?MAX_HEADERS) ->
     %% Too many headers sent, bad request.
     ok = mochiweb_socket:exit_if_closed(mochiweb_socket:setopts(Socket, [{packet, raw}])),
     handle_invalid_request(Socket, Opts, Request, Headers);
+
 headers(Socket, Opts, Request, Headers, Body, HeaderCount) ->
     ok = mochiweb_socket:exit_if_closed(mochiweb_socket:setopts(Socket, [{active, once}])),
     receive
         {Protocol, _, http_eoh} when Protocol == http orelse Protocol == ssl ->
             Req = new_request(Socket, Opts, Request, Headers),
-            call_body(Body, Req),
+            _ = call_body(Body, Req),
             ?MODULE:after_response(Body, Req);
         {Protocol, _, {http_header, _, Name, _, Value}} when Protocol == http orelse Protocol == ssl ->
-            headers(Socket, Opts, Request, [{Name, Value} | Headers], Body,
-                    1 + HeaderCount);
-        {tcp_closed, _} ->
-            mochiweb_socket:close(Socket),
-            exit(normal);
-        Msg = {ProtocolErr, _Socket, emsgsize} when
-              ProtocolErr =:= tcp_error ; ProtocolErr =:= ssl_error ->
-            handle_invalid_msg_request(Msg, Socket, Opts);
-        Msg = {ProtocolErr, _Socket, _Reason} when
-              ProtocolErr =:= tcp_error ; ProtocolErr =:= ssl_error ->
-            error_logger:warning_msg("Got unexpected TCP error message: ~w (to pid=~w)~n",
-                                     [Msg, self()]),
-            mochiweb_socket:close(Socket),
-            exit(normal)
-    after ?HEADERS_RECV_TIMEOUT ->
-        mochiweb_socket:close(Socket),
-        exit(normal)
+            headers(Socket, Opts, Request, [{Name, Value} | Headers], Body, 1 + HeaderCount);
+        {Closed, _} when Closed == tcp_closed orelse Closed == ssl_closed ->
+            close_and_exit(Socket);
+        {ProtoErr, _, _} = Msg when ProtoErr == tcp_error orelse ProtoErr == ssl_error ->
+            handle_terminating_error(Msg, Socket, Opts);
+        Spurious ->
+            log_unexpected_message(spurious, Spurious),
+            headers(Socket, Opts, Request, Headers, Body, HeaderCount)
+    after
+        ?HEADERS_RECV_TIMEOUT ->
+            close_and_exit(Socket)
     end.
 
 -spec call_body(callable(), mochiweb:request()) -> term().
@@ -148,20 +137,29 @@ call_body({M, F}, Req) ->
 call_body(Body, Req) ->
     Body(Req).
 
--spec handle_invalid_msg_request(term(), term(), term()) -> no_return().
-handle_invalid_msg_request(Msg, Socket, Opts) ->
-    handle_invalid_msg_request(Msg, Socket, Opts, {'GET', {abs_path, "/"}, {0,9}}, []).
+-spec close_and_exit(Socket :: term()) -> no_return().
+close_and_exit(Socket) ->
+    _ = mochiweb_socket:close(Socket),
+    erlang:exit(normal).
 
--spec handle_invalid_msg_request(term(), term(), term(), term(), term()) -> no_return().
-handle_invalid_msg_request(_Msg, Socket, Opts, Request, RevHeaders) ->
-    handle_invalid_request(Socket, Opts, Request, RevHeaders).
+-spec handle_terminating_error(Msg :: tuple(), Socket :: term(), Opts :: list())
+        -> no_return().
+handle_terminating_error({_ProtoErr, _Sock, emsgsize}, Socket, Opts) ->
+    handle_invalid_request(Socket, Opts, {'GET', {abs_path, "/"}, {0, 9}}, []);
+handle_terminating_error(Msg, Socket, _Opts) ->
+    log_unexpected_message(error, Msg),
+    close_and_exit(Socket).
+
+-spec log_unexpected_message(Type :: atom(), Msg :: term()) -> ok.
+log_unexpected_message(Type, Msg) ->
+    error_logger:warning_msg(
+        "Pid ~p received unexpected ~s message: ~p~n", [erlang:self(), Type, Msg]).
 
 -spec handle_invalid_request(term(), term(), term(), term()) -> no_return().
 handle_invalid_request(Socket, Opts, Request, RevHeaders) ->
     {Mod, _} = Req = new_request(Socket, Opts, Request, RevHeaders),
     _ = Mod:respond({400, [], []}, Req),
-    _ = mochiweb_socket:close(Socket),
-    exit(normal).
+    close_and_exit(Socket).
 
 new_request(Socket, Opts, Request, RevHeaders) ->
     ok = mochiweb_socket:exit_if_closed(mochiweb_socket:setopts(Socket, [{packet, raw}])),
@@ -172,12 +170,11 @@ after_response(Body, {Mod, _} = Req) ->
     Socket = Mod:get(socket, Req),
     case Mod:should_close(Req) of
         true ->
-            mochiweb_socket:close(Socket),
-            exit(normal);
+            close_and_exit(Socket);
         false ->
             Mod:cleanup(Req),
             erlang:garbage_collect(),
-            ?MODULE:loop(Socket, mochiweb_request:get(opts, Req), Body)
+            ?MODULE:loop(Socket, Mod:get(opts, Req), Body)
     end.
 
 parse_range_request(RawRange) when is_list(RawRange) ->
