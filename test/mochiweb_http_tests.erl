@@ -72,13 +72,13 @@ unexpected_msg(Server, MsgAt, Msg) ->
 unexpected_msg_in_hdr_tests(Server) ->
     [{"should ignore a message in the middle of the request line",
       ?_assertMatch({ok, <<"HTTP/1.1 200 OK", _Rest/binary>>},
-		    unexpected_msg(Server, ?IN_METHOD, unexpected_msg_in_your_method))},
+        	    unexpected_msg(Server, ?IN_METHOD, unexpected_msg_in_your_method))},
      {"should ignore a message in the middle of a header",
       ?_assertMatch({ok, <<"HTTP/1.1 200 OK", _Rest/binary>>},
-		    unexpected_msg(Server, ?IN_HEADER, unexpected_msg_in_your_header))},
+        	    unexpected_msg(Server, ?IN_HEADER, unexpected_msg_in_your_header))},
      {"should close on a TCP error on the request line",
       ?_assertMatch({error, closed},
-		    unexpected_msg(Server, ?IN_METHOD, {tcp_error, your_port_you_dont_match_on, something_terrible}))},
+        	    unexpected_msg(Server, ?IN_METHOD, {tcp_error, your_port_you_dont_match_on, something_terrible}))},
      {"should close on a TCP error in a header",
       ?_assertMatch({error, closed},
-		    unexpected_msg(Server, ?IN_HEADER, {tcp_error, your_port_you_dont_match_on, something_terrible}))}].
+        	    unexpected_msg(Server, ?IN_HEADER, {tcp_error, your_port_you_dont_match_on, something_terrible}))}].
