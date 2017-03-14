@@ -66,19 +66,19 @@ unexpected_msg(Server, MsgAt, Msg) ->
     ok = gen_tcp:send(S, Before),
     Acceptor ! Msg,
     gen_tcp:send(S, After),
-    gen_tcp:recv(S, 0, 5000).
+    {gen_tcp:recv(S, 0, 5000), process_info(Acceptor, messages)}.
 
 
 unexpected_msg_in_hdr_tests(Server) ->
     [{"should ignore a message in the middle of the request line",
-      ?_assertMatch({ok, <<"HTTP/1.1 200 OK", _Rest/binary>>},
+      ?_assertMatch({{ok, <<"HTTP/1.1 200 OK", _Rest/binary>>}, {messages, []}},
         	    unexpected_msg(Server, ?IN_METHOD, unexpected_msg_in_your_method))},
      {"should ignore a message in the middle of a header",
-      ?_assertMatch({ok, <<"HTTP/1.1 200 OK", _Rest/binary>>},
+      ?_assertMatch({{ok, <<"HTTP/1.1 200 OK", _Rest/binary>>}, {messages, []}},
         	    unexpected_msg(Server, ?IN_HEADER, unexpected_msg_in_your_header))},
      {"should close on a TCP error on the request line",
-      ?_assertMatch({error, closed},
+      ?_assertMatch({{error, closed}, undefined},
         	    unexpected_msg(Server, ?IN_METHOD, {tcp_error, your_port_you_dont_match_on, something_terrible}))},
      {"should close on a TCP error in a header",
-      ?_assertMatch({error, closed},
+      ?_assertMatch({{error, closed}, undefined},
         	    unexpected_msg(Server, ?IN_HEADER, {tcp_error, your_port_you_dont_match_on, something_terrible}))}].
