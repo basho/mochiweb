@@ -61,7 +61,7 @@ get_req() ->
 unexpected_msg(Server, MsgAt, Msg) ->
     %% Set up with a single acceptor, dig out the pid - sensitive to change in mochiweb_socket_server
     %% state record.
-    [Acceptor] = sets:to_list(element(14, sys:get_state(Server))),
+    [Acceptor] = sets:to_list(element(15, sys:get_state(Server))),
     Port = mochiweb_socket_server:get(Server, port),
     <<Before:MsgAt/binary, After/binary>> = get_req(),
     {ok, S} = gen_tcp:connect({127,0,0,1},Port,[binary,{active,false}]),
@@ -73,10 +73,10 @@ unexpected_msg(Server, MsgAt, Msg) ->
 
 unexpected_msg_in_hdr_tests(Server) ->
     [{"should ignore a message in the middle of the request line",
-      ?_assertMatch({ok, <<"HTTP/1.1 200 OK", _Rest/binary>>},
+      ?_assertMatch({ok, <<"HTTP/1.1 400 Bad Request", _Rest/binary>>},
 		    unexpected_msg(Server, ?IN_METHOD, unexpected_msg_in_your_method))},
      {"should ignore a message in the middle of a header",
-      ?_assertMatch({ok, <<"HTTP/1.1 200 OK", _Rest/binary>>},
+      ?_assertMatch({ok, <<"HTTP/1.1 400 Bad Request", _Rest/binary>>},
 		    unexpected_msg(Server, ?IN_HEADER, unexpected_msg_in_your_header))},
      {"should close on a TCP error on the request line",
       ?_assertMatch({error, closed},

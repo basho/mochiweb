@@ -92,7 +92,7 @@ request(Socket, Opts, Body) ->
             exit(normal);
         Msg = {ProtocolErr, _Socket, emsgsize} when
               ProtocolErr =:= tcp_error ; ProtocolErr =:= ssl_error ->
-            handle_invalid_msg_request(Msg, Socket);
+            handle_invalid_msg_request(Msg, Socket, Opts);
         {ProtocolErr, _Socket, _Reason} when
               ProtocolErr =:= tcp_error ; ProtocolErr =:= ssl_error ->
             mochiweb_socket:close(Socket),
@@ -128,7 +128,7 @@ headers(Socket, Opts, Request, Headers, Body, HeaderCount) ->
             exit(normal);
         Msg = {ProtocolErr, _Socket, emsgsize} when
               ProtocolErr =:= tcp_error ; ProtocolErr =:= ssl_error ->
-            handle_invalid_msg_request(Msg, Socket);
+            handle_invalid_msg_request(Msg, Socket, Opts);
         Msg = {ProtocolErr, _Socket, _Reason} when
               ProtocolErr =:= tcp_error ; ProtocolErr =:= ssl_error ->
             error_logger:warning_msg("Got unexpected TCP error message: ~w (to pid=~w)~n",
