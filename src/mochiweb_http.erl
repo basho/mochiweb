@@ -92,13 +92,13 @@ request(Socket, Opts, Body) ->
             exit(normal);
         Msg = {ProtocolErr, _Socket, emsgsize} when
               ProtocolErr =:= tcp_error ; ProtocolErr =:= ssl_error ->
-            handle_invalid_msg_request(Msg, Socket, Opts);
+            handle_invalid_msg_request(Msg, Socket, Opts, 400);
         {ProtocolErr, _Socket, _Reason} when
               ProtocolErr =:= tcp_error ; ProtocolErr =:= ssl_error ->
             mochiweb_socket:close(Socket),
             exit(normal);
         Other ->
-            handle_invalid_msg_request(Other, Socket, Opts)
+            handle_invalid_msg_request(Other, Socket, Opts, 400)
     after ?REQUEST_RECV_TIMEOUT ->
         mochiweb_socket:close(Socket),
         exit(normal)
@@ -112,7 +112,7 @@ reentry(Body) ->
 headers(Socket, Opts, Request, Headers, _Body, ?MAX_HEADERS) ->
     %% Too many headers sent, bad request.
     ok = mochiweb_socket:exit_if_closed(mochiweb_socket:setopts(Socket, [{packet, raw}])),
-    handle_invalid_request(Socket, Opts, Request, Headers);
+    handle_invalid_request(Socket, Opts, 400, Request, Headers);
 headers(Socket, Opts, Request, Headers, Body, HeaderCount) ->
     ok = mochiweb_socket:exit_if_closed(mochiweb_socket:setopts(Socket, [{active, once}])),
     receive
@@ -128,7 +128,7 @@ headers(Socket, Opts, Request, Headers, Body, HeaderCount) ->
             exit(normal);
         Msg = {ProtocolErr, _Socket, emsgsize} when
               ProtocolErr =:= tcp_error ; ProtocolErr =:= ssl_error ->
-            handle_invalid_msg_request(Msg, Socket, Opts);
+            handle_invalid_msg_request(Msg, Socket, Opts, 431);
         Msg = {ProtocolErr, _Socket, _Reason} when
               ProtocolErr =:= tcp_error ; ProtocolErr =:= ssl_error ->
             error_logger:warning_msg("Got unexpected TCP error message: ~w (to pid=~w)~n",
@@ -136,7 +136,7 @@ headers(Socket, Opts, Request, Headers, Body, HeaderCount) ->
             mochiweb_socket:close(Socket),
             exit(normal);
         Other ->
-            handle_invalid_msg_request(Other, Socket, Opts, Request, Headers)
+            handle_invalid_msg_request(Other, Socket, Opts, 400, Request, Headers)
     after ?HEADERS_RECV_TIMEOUT ->
         mochiweb_socket:close(Socket),
         exit(normal)
@@ -149,25 +149,25 @@ call_body({M, F}, Req) ->
 call_body(Body, Req) ->
     Body(Req).
 
--spec handle_invalid_msg_request(term(), term(), term()) -> no_return().
-handle_invalid_msg_request(Msg, Socket, Opts) ->
-    handle_invalid_msg_request(Msg, Socket, Opts, {'GET', {abs_path, "/"}, {0,9}}, []).
+-spec handle_invalid_msg_request(term(), term(), term(), pos_integer()) -> no_return().
+handle_invalid_msg_request(Msg, Socket, Opts, StatusCode) ->
+    handle_invalid_msg_request(Msg, Socket, Opts, StatusCode, {'GET', {abs_path, "/"}, {0,9}}, []).
 
--spec handle_invalid_msg_request(term(), term(), term(), term(), term()) -> no_return().
-handle_invalid_msg_request(Msg, Socket, Opts, Request, RevHeaders) ->
+-spec handle_invalid_msg_request(term(), term(), term(), pos_integer(), term(), term()) -> no_return().
+handle_invalid_msg_request(Msg, Socket, Opts, StatusCode, Request, RevHeaders) ->
     case {Msg, r15b_workaround()} of
         {{tcp_error,_,emsgsize}, true} ->
             %% R15B02 returns this then closes the socket, so close and exit
             mochiweb_socket:close(Socket),
             exit(normal);
         _ ->
-            handle_invalid_request(Socket, Opts, Request, RevHeaders)
+            handle_invalid_request(Socket, Opts, StatusCode, Request, RevHeaders)
     end.
 
--spec handle_invalid_request(term(), term(), term(), term()) -> no_return().
-handle_invalid_request(Socket, Opts, Request, RevHeaders) ->
+-spec handle_invalid_request(term(), term(), pos_integer(), term(), term()) -> no_return().
+handle_invalid_request(Socket, Opts, StatusCode, Request, RevHeaders) ->
     Req = new_request(Socket, Opts, Request, RevHeaders),
-    Req:respond({400, [], []}),
+    Req:respond({StatusCode, [], []}),
     mochiweb_socket:close(Socket),
     exit(normal).
 
