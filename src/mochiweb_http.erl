@@ -136,6 +136,8 @@ headers(Socket, Opts, Request, Headers, Body, HeaderCount) ->
             mochiweb_socket:close(Socket),
             exit(normal);
         Other ->
+            error_logger:warning_msg("Got unexpected Message: ~w (to pid=~w)~n",
+                                     [Other, self()]),
             handle_invalid_msg_request(Other, Socket, Opts, 400, Request, Headers)
     after ?HEADERS_RECV_TIMEOUT ->
         mochiweb_socket:close(Socket),

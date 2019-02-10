@@ -101,7 +101,7 @@ unexpected_msg_send(Server, MsgAt, Msg) ->
     gen_tcp:recv(S, 0, 5000).
 
 invalid_header_send(Server, Msg) ->
-    {S, Acceptor} = setup_server(Server),
+    {S, _Acceptor} = setup_server(Server),
     gen_tcp:send(S, Msg),
     gen_tcp:recv(S, 0, 5000).
 
