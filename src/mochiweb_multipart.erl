@@ -1,5 +1,23 @@
 %% @author Bob Ippolito <bob@mochimedia.com>
 %% @copyright 2007 Mochi Media, Inc.
+%%
+%% Permission is hereby granted, free of charge, to any person obtaining a
+%% copy of this software and associated documentation files (the "Software"),
+%% to deal in the Software without restriction, including without limitation
+%% the rights to use, copy, modify, merge, publish, distribute, sublicense,
+%% and/or sell copies of the Software, and to permit persons to whom the
+%% Software is furnished to do so, subject to the following conditions:
+%%
+%% The above copyright notice and this permission notice shall be included in
+%% all copies or substantial portions of the Software.
+%%
+%% THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+%% IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+%% FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
+%% THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+%% LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+%% FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+%% DEALINGS IN THE SOFTWARE.
 
 %% @doc Utilities for parsing multipart/form-data.
 
@@ -374,7 +392,7 @@ parse3(Transport) ->
               body_end,
               eof],
     TestCallback = fun (Next) -> test_callback(Next, Expect) end,
-    ServerFun = fun (Socket) ->
+    ServerFun = fun (Socket, _Opts) ->
                         ok = mochiweb_socket:send(Socket, BinContent),
                         exit(normal)
                 end,
@@ -410,7 +428,7 @@ parse2(Transport) ->
               body_end,
               eof],
     TestCallback = fun (Next) -> test_callback(Next, Expect) end,
-    ServerFun = fun (Socket) ->
+    ServerFun = fun (Socket, _Opts) ->
                         ok = mochiweb_socket:send(Socket, BinContent),
                         exit(normal)
                 end,
@@ -447,7 +465,7 @@ do_parse_form(Transport) ->
                  "--AaB03x--",
                  ""], "\r\n"),
     BinContent = iolist_to_binary(Content),
-    ServerFun = fun (Socket) ->
+    ServerFun = fun (Socket, _Opts) ->
                         ok = mochiweb_socket:send(Socket, BinContent),
                         exit(normal)
                 end,
@@ -500,7 +518,7 @@ do_parse(Transport) ->
               body_end,
               eof],
     TestCallback = fun (Next) -> test_callback(Next, Expect) end,
-    ServerFun = fun (Socket) ->
+    ServerFun = fun (Socket, _Opts) ->
                         ok = mochiweb_socket:send(Socket, BinContent),
                         exit(normal)
                 end,
@@ -552,7 +570,7 @@ parse_partial_body_boundary(Transport) ->
               body_end,
               eof],
     TestCallback = fun (Next) -> test_callback(Next, Expect) end,
-    ServerFun = fun (Socket) ->
+    ServerFun = fun (Socket, _Opts) ->
                         ok = mochiweb_socket:send(Socket, BinContent),
                         exit(normal)
                 end,
@@ -605,7 +623,7 @@ parse_large_header(Transport) ->
               body_end,
               eof],
     TestCallback = fun (Next) -> test_callback(Next, Expect) end,
-    ServerFun = fun (Socket) ->
+    ServerFun = fun (Socket, _Opts) ->
                         ok = mochiweb_socket:send(Socket, BinContent),
                         exit(normal)
                 end,
@@ -681,7 +699,7 @@ flash_parse(Transport) ->
               body_end,
               eof],
     TestCallback = fun (Next) -> test_callback(Next, Expect) end,
-    ServerFun = fun (Socket) ->
+    ServerFun = fun (Socket, _Opts) ->
                         ok = mochiweb_socket:send(Socket, BinContent),
                         exit(normal)
                 end,
@@ -729,7 +747,7 @@ flash_parse2(Transport) ->
               body_end,
               eof],
     TestCallback = fun (Next) -> test_callback(Next, Expect) end,
-    ServerFun = fun (Socket) ->
+    ServerFun = fun (Socket, _Opts) ->
                         ok = mochiweb_socket:send(Socket, BinContent),
                         exit(normal)
                 end,
@@ -856,7 +874,7 @@ multipart_parsing_benchmark() ->
               body_end,
               eof],
     TestCallback = fun (Next) -> test_callback(Next, Expect) end,
-    ServerFun = fun (Socket) ->
+    ServerFun = fun (Socket, _Opts) ->
                         ok = mochiweb_socket:send(Socket, BinContent),
                         exit(normal)
                 end,
