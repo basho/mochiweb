@@ -35,14 +35,13 @@ add_unbroken_ciphers_default(Opts) ->
     [{ciphers, Ciphers} | proplists:delete(ciphers, Opts)].
 
 filter_broken_cipher_suites(Ciphers) ->
-	case proplists:get_value(ssl_app, ssl:versions()) of
-		"5.3" ++ _ ->
-            lists:filter(fun(Suite) ->
-                                 string:left(atom_to_list(element(1, Suite)), 4) =/= "ecdh"
-                         end, Ciphers);
-        _ ->
-            Ciphers
-    end.
+    % This was intended to remove any cipher that has "ecdh", however it makes
+    % assumptions that the ciphers are passed in their non-binary format e.g.
+    % without conversion using
+    % https://github.com/erlang/otp/blob/OTP_R16B03/lib/ssl/src/ssl_cipher.erl#L750-L857
+    % So we ignore the filter for now.  The filter should be re-applied in riak_core
+    % prior to any conversion.
+    Ciphers.
 
 filter_unsecure_cipher_suites(Ciphers) ->
     lists:filter(fun
