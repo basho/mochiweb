@@ -126,7 +126,7 @@ build_headers(Count, Size) ->
     AllowedChars = ["a", "b", "c", "1"],
     CharFun = 
         fun(_I, Acc) ->
-            C = lists:nth(random:uniform(length(AllowedChars)), AllowedChars),
+            C = lists:nth(rand:uniform(length(AllowedChars)), AllowedChars),
             [C|Acc]
         end,
     FullString = lists:reverse(lists:foldl(CharFun, [], lists:seq(1, Size))),

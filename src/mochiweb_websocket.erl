@@ -28,7 +28,7 @@
 -export([loop/5, upgrade_connection/2, request/5]).
 -export([send/3]).
 -ifdef(TEST).
--compile(export_all).
+-compile([export_all, nowarn_export_all]).
 -endif.
 
 loop(Socket, Body, State, WsVersion, ReplyChannel) ->
