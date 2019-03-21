@@ -11,3 +11,4 @@
 *.beam
 *.dump
 _build/*
+rebar.lock
