@@ -110,7 +110,7 @@ rngchar() ->
     rngchar(crypto:rand_uniform(0, tuple_size(?SAFE_CHARS))).
 -else.
 rngchar() ->
-    rngchar(rand:uniform(tuple_size(?SAFE_CHARS) + 1) - 1).
+    rngchar(rand:uniform(tuple_size(?SAFE_CHARS)) - 1).
 -endif.
 
 
