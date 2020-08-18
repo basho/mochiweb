@@ -126,6 +126,12 @@ tokens_test() ->
        mochiweb_html:tokens(<<"not html < at all">>)),
     ok.
 
+surrogate_test() ->
+    %% https://github.com/mochi/mochiweb/issues/164
+    ?assertEqual(
+       [{data,<<240,159,152,138>>,false}],
+       mochiweb_html:tokens(<<"&#55357;&#56842;">>)).
+
 parse_test() ->
     D0 = <<"<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01//EN\" \"http://www.w3.org/TR/html4/strict.dtd\">
 <html>
@@ -422,6 +428,52 @@ dumb_br_test() ->
        {<<"div">>,[],[{<<"br">>, [], []}, {<<"br">>, [], []}, <<"z">>]},
        mochiweb_html:parse("<div><br><br>z</br></br></div>")).
 
+empty_elements_test() ->
+    ?assertEqual(
+       {<<"div">>,[],[<<"a">>,{<<"area">>,[],[]},<<"z">>]},
+       mochiweb_html:parse("<div>a<area>z</div>")),
+    ?assertEqual(
+       {<<"div">>,[],[<<"a">>,{<<"base">>,[],[]},<<"z">>]},
+       mochiweb_html:parse("<div>a<base>z</div>")),
+    ?assertEqual(
+       {<<"div">>,[],[<<"a">>,{<<"br">>,[],[]},<<"z">>]},
+       mochiweb_html:parse("<div>a<br>z</div>")),
+    ?assertEqual(
+       {<<"div">>,[],[<<"a">>,{<<"col">>,[],[]},<<"z">>]},
+       mochiweb_html:parse("<div>a<col>z</div>")),
+    ?assertEqual(
+       {<<"div">>,[],[<<"a">>,{<<"embed">>,[],[]},<<"z">>]},
+       mochiweb_html:parse("<div>a<embed>z</div>")),
+    ?assertEqual(
+       {<<"div">>,[],[<<"a">>,{<<"hr">>,[],[]},<<"z">>]},
+       mochiweb_html:parse("<div>a<hr>z</div>")),
+    ?assertEqual(
+       {<<"div">>,[],[<<"a">>,{<<"img">>,[],[]},<<"z">>]},
+       mochiweb_html:parse("<div>a<img>z</div>")),
+    ?assertEqual(
+       {<<"div">>,[],[<<"a">>,{<<"input">>,[],[]},<<"z">>]},
+       mochiweb_html:parse("<div>a<input>z</div>")),
+    ?assertEqual(
+       {<<"div">>,[],[<<"a">>,{<<"keygen">>,[],[]},<<"z">>]},
+       mochiweb_html:parse("<div>a<keygen>z</div>")),
+    ?assertEqual(
+       {<<"div">>,[],[<<"a">>,{<<"link">>,[],[]},<<"z">>]},
+       mochiweb_html:parse("<div>a<link>z</div>")),
+    ?assertEqual(
+       {<<"div">>,[],[<<"a">>,{<<"meta">>,[],[]},<<"z">>]},
+       mochiweb_html:parse("<div>a<meta>z</div>")),
+    ?assertEqual(
+       {<<"div">>,[],[<<"a">>,{<<"param">>,[],[]},<<"z">>]},
+       mochiweb_html:parse("<div>a<param>z</div>")),
+    ?assertEqual(
+       {<<"div">>,[],[<<"a">>,{<<"source">>,[],[]},<<"z">>]},
+       mochiweb_html:parse("<div>a<source>z</div>")),
+    ?assertEqual(
+       {<<"div">>,[],[<<"a">>,{<<"track">>,[],[]},<<"z">>]},
+       mochiweb_html:parse("<div>a<track>z</div>")),
+    ?assertEqual(
+       {<<"div">>,[],[<<"a">>,{<<"wbr">>,[],[]},<<"z">>]},
+       mochiweb_html:parse("<div>a<wbr>z</div>")).
 
 php_test() ->
     %% http://code.google.com/p/mochiweb/issues/detail?id=71
@@ -556,7 +608,15 @@ parse_amp_test_() ->
      ?_assertEqual(
         {<<"html">>,[],
          [{<<"body">>,[],[<<"&">>]}]},
-        mochiweb_html:parse("<html><body>&</body></html>"))].
+        mochiweb_html:parse("<html><body>&</body></html>")),
+     ?_assertEqual(
+        {<<"html">>,[],
+         [{<<"body">>,[],[<<"&;">>]}]},
+        mochiweb_html:parse("<html><body>&;</body></html>")),
+     ?_assertEqual(
+        {<<"html">>,[],
+         [{<<"body">>,[],[<<"&MISSING;">>]}]},
+        mochiweb_html:parse("<html><body>&MISSING;</body></html>"))].
 
 parse_unescaped_lt_test() ->
     D1 = <<"<div> < < <a href=\"/\">Back</a></div>">>,
@@ -587,3 +647,10 @@ implicit_html_test() ->
         [{<<"head">>, [], []},
          {<<"body">>, [], []}]},
        mochiweb_html:parse("<!doctype html><head></head><body></body>")).
+
+no_letter_no_tag_test() ->
+    ?assertEqual(
+       {<<"html">>,[],
+         [{<<"body">>,[],[<<"<3><!><*><<>>">>,{<<"body">>,[],[]}]}]},
+       mochiweb_html:parse(<<"<html><body><3><!><*><<>><body></html>">>)
+      ).

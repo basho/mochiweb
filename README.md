@@ -1,19 +1,23 @@
 MochiWeb is an Erlang library for building lightweight HTTP servers.
 
-[![Build Status](https://secure.travis-ci.org/basho/mochiweb.png?branch=master)](http://travis-ci.org/basho/mochiweb)
+The latest version of MochiWeb is available at https://github.com/mochi/mochiweb
 
-The latest version of MochiWeb is available at http://github.com/mochi/mochiweb
+The mailing list for MochiWeb is at https://groups.google.com/group/mochiweb/
 
-The mailing list for MochiWeb is at http://groups.google.com/group/mochiweb/
-
-R12B compatibility:
-The master of MochiWeb is tested with R14A and later. A branch compatible
-with R12B is maintained separately at http://github.com/lemenkov/mochiweb
-The R12B branch of that repository is mirrored in the official repository
-occasionally for convenience.
+Erlang OTP is required for setting up the MochiWeb environment and is available at https://www.erlang.org/
 
 To create a new mochiweb using project:
    make app PROJECT=project_name
 
 To create a new mochiweb using project in a specific directory:
    make app PROJECT=project_name PREFIX=$HOME/projects/
+
+Information about Rebar (Erlang build tool) is available at https://github.com/rebar/rebar
+
+MochiWeb is currently tested with Erlang/OTP R15B03 through 22.0.
+
+# OTP 21.2, 21.2.1, 21.2.2 warning
+
+OTP 21.2 (up to and including 21.2.2) introduced an SSL regression that
+makes these releases unsafe to use. See [ERL-830](https://bugs.erlang.org/browse/ERL-830).
+This issue was resolved in OTP 21.2.3.

@@ -1,3 +1,90 @@
+Version 2.20.0 released 2019-07-14
+
+* Expand testing matrix to include Erlang/OTP 22.0 and Erlang/OTP 21.3
+* Add support for SameSite=none in cookies
+  https://github.com/mochi/mochiweb/pull/225
+* Fix parsing of certain unquoted cookie values
+  https://github.com/mochi/mochiweb/pull/212
+
+Version 2.19.0 released 2019-01-17
+
+* Fix warning in 21.2.3 and crash on incompatible releases
+  (21.2, 21.2.1, 21.2.2 have a SSL bug)
+  https://github.com/mochi/mochiweb/pull/210
+* Erlang/OTP 21 compatibility
+  https://github.com/mochi/mochiweb/pull/198
+  https://github.com/mochi/mochiweb/pull/204
+* New `{buffer, Buffer}` socket server option
+  https://github.com/mochi/mochiweb/pull/208
+* New `{format, map}` option for mochijson2:decode/2
+  https://github.com/mochi/mochiweb/pull/206
+* No longer crash when a socket is closed server-side
+  https://github.com/mochi/mochiweb/pull/205
+* Support for SameSite cookie setting
+  https://github.com/mochi/mochiweb/pull/203
+
+Version 2.18.0 released 2018-05-12
+
+* Add the 100.64.0.0/10 private IP shared address range
+  https://github.com/mochi/mochiweb/pull/193
+
+Version 2.17.0 released 2017-08-12
+
+* Fix deprecation warnings for Erlang/OTP 20.0
+  https://github.com/mochi/mochiweb/pull/186
+* Updated mochiweb_html singleton tag heuristic for HTML5
+  https://github.com/mochi/mochiweb/pull/190
+* Send 400 Bad Request if request line exceeds recbuf (regression fix)
+  https://github.com/mochi/mochiweb/pull/191
+
+Version 2.16.0 released 2016-12-19
+
+* Added support for encoding maps to mochijson2 (where available)
+  https://github.com/mochi/mochiweb/pull/184
+* Added missing RFC1918 address spaces to the allowed x-forwarded-for header
+  https://github.com/mochi/mochiweb/pull/183
+
+Version 2.15.1 released 2016-06-24
+
+* Fixed deprecation warnings in Erlang/OTP 19.0
+  https://github.com/mochi/mochiweb/pull/177
+
+Version 2.15.0 released 2016-05-08
+
+* mochiweb_request now normalizes paths such that duplicate slashes are
+  discarded (and thus all path segments except the last are non-empty).
+  https://github.com/mochi/mochiweb/pull/173
+
+Version 2.14.0 released 2016-04-11
+
+* mochiweb_html now requires a letter to begin a HTML tag
+  https://github.com/mochi/mochiweb/pull/171
+
+Version 2.13.2 released 2016-03-18
+
+* Allow mochijson2 to handle code points that xmerl_ucs considered
+  invalid
+  https://github.com/mochi/mochiweb/issues/168
+
+Version 2.13.1 released 2016-03-13
+
+* Fix mochiweb_html regression parsing invalid charref sequences
+  https://github.com/mochi/mochiweb/issues/167
+
+Version 2.13.0 released 2016-02-08
+
+* Support parsing of UTF-16 surrogate pairs encoded as character
+  references in mochiweb_html
+  https://github.com/mochi/mochiweb/issues/164
+* Avoid swallowing messages that are not related to the socket
+  during request parsing
+  https://github.com/mochi/mochiweb/pull/161
+* Ensure correct ordering of Set-Cookie headers: first in, first out
+  https://github.com/mochi/mochiweb/issues/162
+* Improve response times by caching a formatted date once per second
+  for the response headers with a mochiweb_clock service
+  https://github.com/mochi/mochiweb/pull/158
+
 Version 2.12.2 released 2015-02-21
 
 * Close connections quietly when setopts fails with a closed socket.
@@ -100,7 +187,7 @@ Version 2.7.0 released 2013-08-01
   call instead of an asynchronous cast
 * `mochiweb_html:parse_tokens/1` (and `parse/1`) will now create a
   html element to wrap documents that have a HTML5 doctype
-  (`<!doctype html>`) but no html element 
+  (`<!doctype html>`) but no html element
   https://github.com/mochi/mochiweb/issues/110
 
 Version 2.6.0 released 2013-04-15
@@ -119,7 +206,7 @@ Version 2.5.0 released 2013-03-04
   (URL and Filename safe alphabet, see RFC 4648).
 * Fix rebar.config in mochiwebapp_skel to use {branch, "master"}
   https://github.com/mochi/mochiweb/issues/105
-  
+
 Version 2.4.2 released 2013-02-05
 
 * Fixed issue in mochiweb_response introduced in v2.4.0
