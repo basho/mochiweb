@@ -40,11 +40,11 @@
 
 %% API.
 
--spec start_link() -> {ok, pid()}.
+-spec start_link() -> gen_server:start_ret().
 start_link() ->
     gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
 
--spec start() -> {ok, pid()}.
+-spec start() -> gen_server:start_ret().
 start() ->
     gen_server:start({local, ?MODULE}, ?MODULE, [], []).
 
