@@ -146,7 +146,7 @@ headers(Socket, Opts, Request, Headers, Body,
       {tcp_closed = Error, _} ->
 	  mochiweb_socket:close(Socket), exit({shutdown, Error});
       {tcp_error, _, emsgsize} ->
-	  handle_invalid_request(Socket, Opts, Request, Headers)
+	  handle_invalid_request(Socket, Opts, Request, Headers, 431)
       after ?HEADERS_RECV_TIMEOUT ->
 		mochiweb_socket:close(Socket), exit({shutdown, headers_recv_timeout})
     end.
@@ -158,18 +158,22 @@ call_body(Body, Req) -> Body(Req).
 
 -spec handle_invalid_request(term(), term()) -> no_return().
 handle_invalid_request(Socket, Opts) ->
-    handle_invalid_request(Socket, Opts,
-			       {'GET', {abs_path, "/"}, {0, 9}}, []).
+    handle_invalid_request(
+        Socket, Opts, {'GET', {abs_path, "/"}, {0, 9}}, []).
 
+-spec handle_invalid_request(
+    term(), term(), term(), term()) -> no_return().
+handle_invalid_request(Socket, Opts, Request, RevHeaders) ->
+    handle_invalid_request(Socket, Opts, Request, RevHeaders, 400).
 
--spec handle_invalid_request(term(), term(), term(),
-			     term()) -> no_return().
+-spec handle_invalid_request(
+    term(), term(), term(), term(), 400..431) -> no_return().
 
 handle_invalid_request(Socket, Opts, Request,
-		       RevHeaders) ->
+		       RevHeaders, StatusCode) ->
     {ReqM, _} = Req = new_request(Socket, Opts, Request,
 				  RevHeaders),
-    ReqM:respond({400, [], []}, Req),
+    ReqM:respond({StatusCode, [], []}, Req),
     mochiweb_socket:close(Socket),
     exit({shutdown, invalid_request}).
 

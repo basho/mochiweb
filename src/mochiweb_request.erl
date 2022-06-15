@@ -929,6 +929,10 @@ server_headers() ->
     [{"Server", "MochiWeb/1.0 (" ++ (?QUIP) ++ ")"},
      {"Date", mochiweb_clock:rfc1123()}].
 
+make_code(431) ->
+    % HTTP Code 431 not yet supported in httpd_util
+    ["431",
+     [" " | "Request Header Fields Too Large"]];
 make_code(X) when is_integer(X) ->
     [integer_to_list(X),
      [" " | httpd_util:reason_phrase(X)]];

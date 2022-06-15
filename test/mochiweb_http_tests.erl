@@ -17,8 +17,7 @@ has_acceptor_bug_tests(Server) ->
     [{"1000 should be fine even with the bug",
       ?_assertEqual(false, (has_bug(Port, 1000)))},
      {"10000 should trigger the bug if present",
-      ?_assertEqual(false,
-		    (has_bug(Port, 10000)))}].
+      ?_assertNot((has_bug(Port, 10000)))}].
 
 responder(Req) ->
     mochiweb_request:respond({200,
@@ -37,6 +36,6 @@ has_bug(Port, Len) ->
        {{"HTTP/1.1", 200, "OK"}, _,
 	"<html><body>Hello</body></html>"}} ->
 	  false;
-      %% It is expected that the request will fail because the header is too long
-      {ok, {{"HTTP/1.1", 400, "Bad Request"}, _, []}} -> false
+      {ok, {{"HTTP/1.1", 431, "Request Header Fields Too Large"}, _, []}} ->
+      false
     end.
